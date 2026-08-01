@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ROV Control Dashboard — Veteran Leviathan</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ======================= HEADER ======================= -->
+  <header class="topbar">
+    <div class="team-info">
+      <img id="teamLogo" class="team-logo" src="assets/logo_upn.png" alt="Logo Tim" />
+      <div class="team-text">
+        <span class="team-label">TEAM</span>
+        <h1 id="teamName">Veteran Leviathan</h1>
+      </div>
+    </div>
+
+    <div class="status-group">
+      <div class="status-item">
+        <span class="status-key">ROV STATUS</span>
+        <span class="status-value">
+          <i id="rovStatusDot" class="dot dot-green"></i>
+          <span id="rovStatusText">Connected</span>
+        </span>
+      </div>
+      <div class="status-item">
+        <span class="status-key"><i data-icon="battery"></i>BATTERY</span>
+        <span class="status-value"><span id="batteryValue">14.8</span><small>V</small></span>
+      </div>
+      <div class="status-item">
+        <span class="status-key"><i data-icon="clock"></i>MISSION TIME</span>
+        <span class="status-value" id="missionTime">00:00</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================= CAMERAS ======================= -->
+  <main class="grid-main">
+    <section class="camera-row">
+      <article class="panel camera-panel">
+        <header class="panel-head">
+          <span class="panel-title">CAMERA BOTTOM</span>
+          <span class="badge badge-live"><i class="dot dot-red pulse"></i>LIVE</span>
+        </header>
+        <div class="camera-body">
+          <span class="corner corner-tl"></span>
+          <span class="corner corner-tr"></span>
+          <video id="camBottom" class="camera-feed" autoplay muted playsinline></video>
+          <canvas id="camBottomCanvas" class="hidden-canvas"></canvas>
+          <div class="crosshair"></div>
+          <div class="camera-meta">
+            <span id="camBottomInfo">1920×1080 · 30 fps · CAM-BOTTOM</span>
+            <span id="camBottomClock">--:--:--</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel camera-panel">
+        <header class="panel-head">
+          <span class="panel-title">CAMERA WALL</span>
+          <span class="badge badge-live"><i class="dot dot-red pulse"></i>LIVE</span>
+        </header>
+        <div class="camera-body">
+          <span class="corner corner-tl"></span>
+          <span class="corner corner-tr"></span>
+          <video id="camWall" class="camera-feed" autoplay muted playsinline></video>
+          <div class="crosshair"></div>
+          <div class="camera-meta">
+            <span id="camWallInfo">1920×1080 · 30 fps · CAM-WALL</span>
+            <span id="camWallClock">--:--:--</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ======================= QR / GRIPPER / CONTROLLER ======================= -->
+    <section class="panel-row">
+
+      <article class="panel qr-panel">
+        <header class="panel-head">
+          <span class="panel-title">QR DETECTION</span>
+          <span id="qrBadge" class="badge badge-idle">IDLE</span>
+        </header>
+        <div class="qr-body">
+          <div class="qr-preview">
+            <span class="micro-label">PREVIEW</span>
+            <canvas id="qrPreviewCanvas" width="96" height="96"></canvas>
+          </div>
+          <div class="qr-data">
+            <span class="micro-label">DECODED DATA</span>
+            <div id="qrDecoded" class="qr-decoded-box">— NO DATA —</div>
+            <span class="micro-label">LAST DETECTION</span>
+            <div id="qrLastDetection" class="qr-timestamp">--:--:--</div>
+          </div>
+        </div>
+        <div class="scan-bar"><div id="scanBarFill" class="scan-bar-fill"></div></div>
+      </article>
+
+      <article class="panel gripper-panel">
+        <header class="panel-head">
+          <span class="panel-title">GRIPPER</span>
+          <span id="gripperBadge" class="badge badge-green">OPEN</span>
+        </header>
+        <div class="gripper-body">
+          <div class="gripper-visual">
+            <div class="jaw-bars">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="gripper-track">
+              <div id="gripperHandle" class="gripper-handle"></div>
+            </div>
+            <div class="jaw-bars">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="gripper-buttons">
+            <button id="btnOpen" class="btn btn-toggle active" type="button">OPEN</button>
+            <button id="btnClosed" class="btn btn-toggle" type="button">CLOSED</button>
+          </div>
+          <span id="gripperSource" class="micro-label center">LAST COMMAND VIA CONTROLLER</span>
+        </div>
+      </article>
+
+      <article class="panel controller-panel">
+        <header class="panel-head">
+          <span class="panel-title">CONTROLLER</span>
+          <span id="controllerBadge" class="badge badge-red">DISCONNECTED</span>
+        </header>
+        <div class="controller-body">
+          <div class="controller-id">
+            <div class="gamepad-icon">🎮</div>
+            <div>
+              <div id="controllerName" class="controller-name">No controller</div>
+              <div class="controller-sub">USB / Bluetooth</div>
+            </div>
+          </div>
+          <div class="controller-stats">
+            <div class="stat">
+              <span class="micro-label">SIGNAL</span>
+              <div id="signalBars" class="signal-bars">
+                <span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+            <div class="stat">
+              <span class="micro-label">LATENCY</span>
+              <div><span id="latencyValue">--</span><small>ms</small></div>
+            </div>
+            <div class="stat">
+              <span class="micro-label">CTRL BATTERY</span>
+              <div><span id="ctrlBattery">--</span><small>%</small></div>
+            </div>
+          </div>
+          <div class="input-active">
+            <span class="micro-label">INPUT ACTIVE</span>
+            <div id="inputButtons" class="input-buttons">
+              <span data-btn="LT">LT</span><span data-btn="RT">RT</span>
+              <span data-btn="LB">LB</span><span data-btn="RB">RB</span>
+              <span data-btn="A">A</span><span data-btn="B">B</span>
+              <span data-btn="X">X</span><span data-btn="Y">Y</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ======================= TELEMETRY BAR ======================= -->
+    <section class="telemetry-bar">
+      <div class="telemetry-item">
+        <span class="micro-label"><i data-icon="depth"></i>DEPTH</span>
+        <div class="telemetry-value accent-cyan"><span id="telDepth">0.0</span><small>m</small></div>
+      </div>
+      <div class="telemetry-item">
+        <span class="micro-label"><i data-icon="pitch"></i>PITCH</span>
+        <div class="telemetry-value"><span id="telPitch">+0.0</span><small>°</small></div>
+      </div>
+      <div class="telemetry-item">
+        <span class="micro-label"><i data-icon="roll"></i>ROLL</span>
+        <div class="telemetry-value"><span id="telRoll">+0.0</span><small>°</small></div>
+      </div>
+      <div class="telemetry-item">
+        <span class="micro-label"><i data-icon="yaw"></i>YAW</span>
+        <div class="telemetry-value"><span id="telYaw">0.0</span><small>°</small></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- jsQR: decodes QR codes straight from a video/canvas frame -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/telemetry.js"></script>
+  <script src="js/camera-qr.js"></script>
+  <script src="js/gripper.js"></script>
+  <script src="js/controller.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

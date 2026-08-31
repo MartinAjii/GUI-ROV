@@ -10,20 +10,35 @@ const CONFIG = {
   // lewat query string: index.html?team=Nama%20Tim
   teamName: "Veteran Leviathan",
 
-  // Alamat WebSocket backend ROV kalian (Raspberry Pi / topside PC).
-  // Kirim JSON dengan format lihat di telemetry.js -> handleTelemetryMessage()
-  // Kosongkan ("") kalau belum ada backend -> dashboard akan pakai data simulasi.
-  websocketUrl: "", // contoh: "ws://192.168.4.1:8765"
+  // Alamat WebSocket backend ROV (mavlink_bridge.py) yang jalan di
+  // Raspberry Pi. Ganti <IP-RASPBERRY-PI> dengan IP Pi di jaringan
+  // hAP lite kalian, contoh: "ws://192.168.88.10:8765"
+  websocketUrl: "ws://<IP-RASPBERRY-PI>:8765",
 
   // Reconnect otomatis kalau koneksi WebSocket putus
   wsReconnectDelayMs: 3000,
 
-  // device ID kamera untuk masing-masing feed. Kosongkan untuk memakai
-  // kamera default browser. Ambil daftar ID lewat:
-  // navigator.mediaDevices.enumerateDevices()
   camera: {
-    bottomDeviceId: "",   // contoh: "a1b2c3..."
-    wallDeviceId: "",     // contoh: "d4e5f6..."
+    // "network" = ambil video lewat MJPEG dari Raspberry Pi lewat LAN
+    //             (setup lapangan kalian: laptop <-> hAP lite <-> Raspberry Pi).
+    // "local"   = getUserMedia, kamera/capture card tersambung langsung
+    //             ke laptop yang menjalankan browser (mode testing di meja).
+    mode: "network",
+
+    // --- dipakai kalau mode = "network" ---
+    // Harus IP/hostname yang sama dengan MAVLINK websocket di atas
+    // (satu Raspberry Pi yang sama), port beda karena servernya beda proses.
+    bottomStreamUrl: "http://<IP-RASPBERRY-PI>:5000/stream/bottom",
+    wallStreamUrl: "http://<IP-RASPBERRY-PI>:5000/stream/wall",
+    // Kalau feed putus (kabel LAN goyang dsb.), coba sambung ulang tiap sekian ms.
+    streamReconnectDelayMs: 2000,
+
+    // --- dipakai kalau mode = "local" ---
+    // device ID kamera untuk masing-masing feed. Kosongkan untuk memakai
+    // kamera default browser. Ambil daftar ID lewat:
+    // navigator.mediaDevices.enumerateDevices()
+    bottomDeviceId: "",
+    wallDeviceId: "",
   },
 
   // Interval pemindaian QR (ms) dari feed CAMERA BOTTOM

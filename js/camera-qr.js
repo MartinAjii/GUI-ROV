@@ -1,58 +1,335 @@
 /**
  * camera-qr.js
  * ---------------------------------------------------------------
- * 1) Menyalakan dua feed kamera (CAMERA BOTTOM & CAMERA WALL) lewat
- *    getUserMedia. Ganti CONFIG.camera.*DeviceId kalau kalian pakai
- *    capture card / kamera USB eksternal untuk ROV.
- * 2) Memindai QR code secara live dari feed CAMERA BOTTOM memakai
- *    library jsQR, lalu menampilkan hasilnya (bukan gambar statis)
- *    ke panel QR DETECTION: thumbnail preview + teks hasil decode.
+ * Menyalakan feed CAMERA BOTTOM & CAMERA WALL, lalu memindai QR
+ * code secara live dari feed CAMERA BOTTOM memakai jsQR.
+ *
+ * Dua mode (diatur lewat CONFIG.camera.mode):
+ *  - "network": video diambil lewat MJPEG stream dari Raspberry Pi
+ *    (setup lapangan: laptop <-> hAP lite <-> Raspberry Pi + kamera).
+ *    Elemen <video> di index.html otomatis diganti jadi <img> di sini,
+ *    karena browser menonton MJPEG lewat tag <img>, bukan <video>.
+ *  - "local": getUserMedia, kamera eksternal tersambung langsung ke
+ *    laptop yang menjalankan browser (mode testing/latihan di meja).
+ *
+ * Pemindaian QR (jsQR) bekerja sama persis di kedua mode, karena
+ * canvas.drawImage() menerima elemen <video> maupun <img>.
  * ---------------------------------------------------------------
  */
+
 const CameraQR = (() => {
-  const videoBottom = document.getElementById("camBottom");
-  const videoWall = document.getElementById("camWall");
+  let videoBottom = document.getElementById("camBottom");
+  let videoWall = document.getElementById("camWall");
+
   const scanCanvas = document.getElementById("camBottomCanvas");
-  const scanCtx = scanCanvas.getContext("2d", { willReadFrequently: true });
+  const scanCtx = scanCanvas.getContext("2d", {
+    willReadFrequently: true,
+  });
 
   const previewCanvas = document.getElementById("qrPreviewCanvas");
   const previewCtx = previewCanvas.getContext("2d");
 
   let lastDecodedText = null;
 
+  const activeStreams = new Map();
+
+  /*
+   * Nama-nama yang biasanya digunakan oleh webcam internal laptop
+   * (dipakai hanya di mode "local" supaya webcam bawaan laptop tidak
+   * otomatis kepakai untuk feed ROV).
+   */
+  const INTERNAL_CAMERA_PATTERN =
+    /integrated|built[ -]?in|facetime|truevision|wide vision|easycamera|front camera|user facing|surface.*camera|ir camera/i;
+
   async function start() {
-    await Promise.all([
-      openFeed(videoBottom, CONFIG.camera.bottomDeviceId),
-      openFeed(videoWall, CONFIG.camera.wallDeviceId),
-    ]);
+    if (CONFIG.camera.mode === "network") {
+      videoBottom = switchToImgElement(videoBottom);
+      videoWall = switchToImgElement(videoWall);
+
+      showNoImage(videoBottom);
+      showNoImage(videoWall);
+
+      startNetworkStream(videoBottom, CONFIG.camera.bottomStreamUrl);
+      startNetworkStream(videoWall, CONFIG.camera.wallStreamUrl);
+    } else {
+      /*
+       * Mode "local": jangan langsung menampilkan kamera apa pun
+       * sampai kamera eksternal yang dikonfigurasi ditemukan.
+       */
+      showNoImage(videoBottom);
+      showNoImage(videoWall);
+
+      await connectExternalCameras();
+
+      /*
+       * Jika kamera ROV / capture card dicolok atau dilepas,
+       * lakukan deteksi ulang tanpa perlu refresh halaman.
+       */
+      if (navigator.mediaDevices?.addEventListener) {
+        navigator.mediaDevices.addEventListener(
+          "devicechange",
+          connectExternalCameras
+        );
+      }
+    }
+
     startClocks();
+
     requestAnimationFrame(scanLoop);
+  }
+
+  /*
+   * ============================================================
+   * MODE "network": MJPEG dari Raspberry Pi lewat <img>
+   * ============================================================
+   */
+
+  function switchToImgElement(el) {
+    if (el.tagName === "IMG") return el;
+    const img = document.createElement("img");
+    img.id = el.id;
+    img.className = el.className;
+    el.replaceWith(img);
+    return img;
+  }
+
+  function startNetworkStream(imgEl, url) {
+    if (!url || url.includes("<IP-RASPBERRY-PI>")) {
+      console.warn(
+        `CONFIG.camera untuk ${imgEl.id} belum diisi IP Raspberry Pi yang benar (js/config.js).`
+      );
+      disconnectFeed(imgEl);
+      return;
+    }
+
+    const connect = () => {
+      imgEl.onload = () => {
+        hideNoImage(imgEl);
+        setCameraStatus(imgEl, true);
+      };
+      imgEl.onerror = () => {
+        setCameraStatus(imgEl, false);
+        showNoImage(imgEl);
+        setTimeout(
+          connect,
+          CONFIG.camera.streamReconnectDelayMs || 2000
+        );
+      };
+      // Cache-bust supaya browser selalu buka koneksi MJPEG baru,
+      // bukan memakai gambar statis yang ke-cache.
+      imgEl.src = `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;
+    };
+
+    connect();
+  }
+
+  /*
+   * ============================================================
+   * MODE "local": DETEKSI KAMERA (getUserMedia)
+   * ============================================================
+   */
+
+  async function connectExternalCameras() {
+    if (
+      !navigator.mediaDevices?.enumerateDevices ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      disconnectFeed(videoBottom);
+      disconnectFeed(videoWall);
+      return;
+    }
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+
+      const videoInputs = devices.filter(
+        (device) => device.kind === "videoinput"
+      );
+
+      console.log("=== DAFTAR KAMERA ===");
+      videoInputs.forEach((device, index) => {
+        console.log(`${index + 1}. ${device.label || "Unknown camera"}`);
+        console.log(`Device ID: ${device.deviceId}`);
+      });
+
+      /*
+       * Kamera hanya boleh digunakan kalau device ID sudah dimasukkan
+       * ke CONFIG. Tidak ada auto fallback ke webcam laptop.
+       */
+      const bottomDevice = CONFIG.camera.bottomDeviceId
+        ? videoInputs.find(
+            (device) => device.deviceId === CONFIG.camera.bottomDeviceId
+          )
+        : null;
+
+      const wallDevice = CONFIG.camera.wallDeviceId
+        ? videoInputs.find(
+            (device) => device.deviceId === CONFIG.camera.wallDeviceId
+          )
+        : null;
+
+      if (bottomDevice) {
+        await openFeed(videoBottom, bottomDevice.deviceId);
+      } else {
+        disconnectFeed(videoBottom);
+      }
+
+      if (wallDevice) {
+        await openFeed(videoWall, wallDevice.deviceId);
+      } else {
+        disconnectFeed(videoWall);
+      }
+    } catch (error) {
+      console.error("Camera detection error:", error);
+      disconnectFeed(videoBottom);
+      disconnectFeed(videoWall);
+    }
   }
 
   async function openFeed(videoEl, deviceId) {
     try {
-      const constraints = {
-        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "environment" },
+      stopStream(videoEl);
+
+      if (!deviceId) {
+        disconnectFeed(videoEl);
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId } },
         audio: false,
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      });
+
       videoEl.srcObject = stream;
-    } catch (err) {
-      console.warn(`Tidak bisa membuka kamera untuk ${videoEl.id}:`, err.message);
-      // Feed tetap kosong (background gelap) sampai kamera tersedia,
-      // dashboard sisanya tetap berfungsi.
+      activeStreams.set(videoEl.id, stream);
+
+      await videoEl.play();
+
+      hideNoImage(videoEl);
+      setCameraStatus(videoEl, true);
+    } catch (error) {
+      console.error(`Camera ${videoEl.id} gagal dibuka:`, error);
+      disconnectFeed(videoEl);
     }
   }
+
+  /*
+   * ============================================================
+   * KAMERA TERPUTUS (dipakai kedua mode)
+   * ============================================================
+   */
+
+  function disconnectFeed(el) {
+    stopStream(el);
+    if (el.tagName === "VIDEO") el.srcObject = null;
+    else el.removeAttribute("src");
+
+    showNoImage(el);
+    setCameraStatus(el, false);
+  }
+
+  function stopStream(el) {
+    if (el.tagName !== "VIDEO") return;
+    const stream = activeStreams.get(el.id) || el.srcObject;
+    if (stream?.getTracks) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+    activeStreams.delete(el.id);
+  }
+
+  /*
+   * ============================================================
+   * TULISAN "NO IMAGE CONNECTED"
+   * ============================================================
+   */
+
+  function getNoImageOverlay(el) {
+    const cameraBody = el.closest(".camera-body");
+    if (!cameraBody) return null;
+
+    let overlay = cameraBody.querySelector(".camera-no-image");
+
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "camera-no-image";
+      overlay.textContent = "NO IMAGE CONNECTED";
+
+      Object.assign(overlay.style, {
+        position: "absolute",
+        inset: "0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#050b16",
+        color: "rgba(255,255,255,0.55)",
+        fontFamily: "var(--font-mono)",
+        fontSize: "13px",
+        fontWeight: "700",
+        letterSpacing: "1.4px",
+        zIndex: "10",
+        pointerEvents: "none",
+      });
+
+      cameraBody.appendChild(overlay);
+    }
+
+    return overlay;
+  }
+
+  function showNoImage(el) {
+    const overlay = getNoImageOverlay(el);
+    if (overlay) overlay.style.display = "flex";
+  }
+
+  function hideNoImage(el) {
+    const overlay = getNoImageOverlay(el);
+    if (overlay) overlay.style.display = "none";
+  }
+
+  /*
+   * ============================================================
+   * STATUS LIVE / NO SIGNAL
+   * ============================================================
+   */
+
+  function setCameraStatus(el, isLive) {
+    const panel = el.closest(".camera-panel");
+    const badge = panel?.querySelector(".panel-head .badge");
+    if (!badge) return;
+
+    if (isLive) {
+      badge.className = "badge badge-live";
+      badge.innerHTML = '<i class="dot dot-red pulse"></i>LIVE';
+    } else {
+      badge.className = "badge badge-idle";
+      badge.textContent = "NO SIGNAL";
+    }
+  }
+
+  /*
+   * ============================================================
+   * CLOCK CAMERA
+   * ============================================================
+   */
 
   function startClocks() {
     setInterval(() => {
       const now = new Date().toLocaleTimeString("id-ID", { hour12: false });
-      document.getElementById("camBottomClock").textContent = now;
-      document.getElementById("camWallClock").textContent = now;
+      const bottomClock = document.getElementById("camBottomClock");
+      const wallClock = document.getElementById("camWallClock");
+      if (bottomClock) bottomClock.textContent = now;
+      if (wallClock) wallClock.textContent = now;
     }, 1000);
   }
 
+  /*
+   * ============================================================
+   * QR SCANNER (bekerja untuk <video> maupun <img>)
+   * ============================================================
+   */
+
   let lastScanTime = 0;
+
   function scanLoop(timestamp) {
     if (timestamp - lastScanTime >= CONFIG.qrScanIntervalMs) {
       lastScanTime = timestamp;
@@ -61,14 +338,34 @@ const CameraQR = (() => {
     requestAnimationFrame(scanLoop);
   }
 
+  function getFrameSize(el) {
+    if (el.tagName === "VIDEO") {
+      return { w: el.videoWidth, h: el.videoHeight };
+    }
+    return { w: el.naturalWidth, h: el.naturalHeight };
+  }
+
+  function isFrameReady(el) {
+    if (el.tagName === "VIDEO") {
+      return !!el.srcObject && el.readyState === el.HAVE_ENOUGH_DATA;
+    }
+    return !!el.getAttribute("src") && el.complete && el.naturalWidth > 0;
+  }
+
   function tryDecodeFrame() {
-    if (videoBottom.readyState !== videoBottom.HAVE_ENOUGH_DATA) return;
+    // Jangan scan jika CAMERA BOTTOM tidak punya gambar sama sekali.
+    if (!isFrameReady(videoBottom)) return;
 
-    scanCanvas.width = videoBottom.videoWidth;
-    scanCanvas.height = videoBottom.videoHeight;
-    scanCtx.drawImage(videoBottom, 0, 0, scanCanvas.width, scanCanvas.height);
+    const { w, h } = getFrameSize(videoBottom);
+    if (!w || !h) return;
 
-    const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+    scanCanvas.width = w;
+    scanCanvas.height = h;
+
+    scanCtx.drawImage(videoBottom, 0, 0, w, h);
+
+    const imageData = scanCtx.getImageData(0, 0, w, h);
+
     const result = jsQR(imageData.data, imageData.width, imageData.height, {
       inversionAttempts: "dontInvert",
     });
@@ -79,19 +376,23 @@ const CameraQR = (() => {
       badge.textContent = "DETECTED";
       badge.className = "badge badge-green";
 
-      // Update thumbnail preview HANYA saat ada QR baru terdeteksi,
-      // supaya gambar preview = QR terakhir yang berhasil discan
-      // (dinamis, bukan file statis).
       if (result.data !== lastDecodedText) {
         lastDecodedText = result.data;
+
         drawPreviewFromCorners(imageData, result.location);
+
         document.getElementById("qrDecoded").textContent = result.data;
         document.getElementById("qrLastDetection").textContent =
           new Date().toLocaleTimeString("id-ID", { hour12: false });
 
-        // Beri tahu modul lain (misalnya kirim ke backend ROV)
-        Telemetry.send({ type: "qr_detected", data: result.data, ts: Date.now() });
+        // Kirim data QR ke telemetry (WebSocket -> backend Raspberry Pi).
+        Telemetry.send({
+          type: "qr_detected",
+          data: result.data,
+          ts: Date.now(),
+        });
       }
+
       pulseScanBar();
     } else {
       badge.textContent = "SCANNING";
@@ -99,17 +400,26 @@ const CameraQR = (() => {
     }
   }
 
-  // Crop area QR dari frame video (pakai koordinat 4 sudut dari jsQR)
-  // lalu gambar ke canvas preview kecil di panel QR DETECTION.
+  /*
+   * ============================================================
+   * QR PREVIEW
+   * ============================================================
+   */
+
   function drawPreviewFromCorners(imageData, location) {
     const xs = [
-      location.topLeftCorner.x, location.topRightCorner.x,
-      location.bottomLeftCorner.x, location.bottomRightCorner.x,
+      location.topLeftCorner.x,
+      location.topRightCorner.x,
+      location.bottomLeftCorner.x,
+      location.bottomRightCorner.x,
     ];
     const ys = [
-      location.topLeftCorner.y, location.topRightCorner.y,
-      location.bottomLeftCorner.y, location.bottomRightCorner.y,
+      location.topLeftCorner.y,
+      location.topRightCorner.y,
+      location.bottomLeftCorner.y,
+      location.bottomRightCorner.y,
     ];
+
     const minX = Math.max(0, Math.min(...xs) - 10);
     const minY = Math.max(0, Math.min(...ys) - 10);
     const size = Math.max(...xs) - minX + 10;
@@ -117,15 +427,29 @@ const CameraQR = (() => {
     previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
     previewCtx.drawImage(
       scanCanvas,
-      minX, minY, size, size,
-      0, 0, previewCanvas.width, previewCanvas.height
+      minX,
+      minY,
+      size,
+      size,
+      0,
+      0,
+      previewCanvas.width,
+      previewCanvas.height
     );
   }
+
+  /*
+   * ============================================================
+   * QR SCAN BAR
+   * ============================================================
+   */
 
   function pulseScanBar() {
     const fill = document.getElementById("scanBarFill");
     fill.style.width = "100%";
-    setTimeout(() => (fill.style.width = "0%"), 400);
+    setTimeout(() => {
+      fill.style.width = "0%";
+    }, 400);
   }
 
   return { start };

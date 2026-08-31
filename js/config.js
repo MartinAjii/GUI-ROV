@@ -13,7 +13,7 @@ const CONFIG = {
   // Alamat WebSocket backend ROV (mavlink_bridge.py) yang jalan di
   // Raspberry Pi. Ganti <IP-RASPBERRY-PI> dengan IP Pi di jaringan
   // hAP lite kalian, contoh: "ws://192.168.88.10:8765"
-  websocketUrl: "ws://<IP-RASPBERRY-PI>:8765",
+  websocketUrl: "ws://192.168.0.1:8765",
 
   // Reconnect otomatis kalau koneksi WebSocket putus
   wsReconnectDelayMs: 3000,
@@ -28,8 +28,8 @@ const CONFIG = {
     // --- dipakai kalau mode = "network" ---
     // Harus IP/hostname yang sama dengan MAVLINK websocket di atas
     // (satu Raspberry Pi yang sama), port beda karena servernya beda proses.
-    bottomStreamUrl: "http://<IP-RASPBERRY-PI>:5000/stream/bottom",
-    wallStreamUrl: "http://<IP-RASPBERRY-PI>:5000/stream/wall",
+    bottomStreamUrl: "http://192.168.0.1:5000/stream/bottom",
+    wallStreamUrl: "http://192.168.0.1:5000/stream/wall",
     // Kalau feed putus (kabel LAN goyang dsb.), coba sambung ulang tiap sekian ms.
     streamReconnectDelayMs: 2000,
 

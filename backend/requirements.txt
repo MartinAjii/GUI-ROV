@@ -1,4 +1,5 @@
 pymavlink
+pyserial
 fastapi
 uvicorn[standard]
 opencv-python-headless

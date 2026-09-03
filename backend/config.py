@@ -1,70 +1,21 @@
-"""
-config.py
----------------------------------------------------------------
-Konfigurasi backend yang berjalan di Raspberry Pi.
-Sesuaikan nilai-nilai di sini dengan setup ROV kalian.
----------------------------------------------------------------
-"""
+import os
 
-# ============================================================
-# PIXHAWK (MAVLink)
-# ============================================================
-# Port serial Pixhawk saat disambung USB ke Raspberry Pi.
-# Cek dengan `ls /dev/serial/by-id/` atau `dmesg | grep tty` setelah dicolok.
-# Paling aman pakai path /dev/serial/by-id/... karena tidak berubah-ubah
-# seperti /dev/ttyACM0 yang bisa bergeser urutannya.
-MAVLINK_CONNECTION = "/dev/ttyACM0"
-MAVLINK_BAUD = 115200
+SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/ttyACM0")
+SERIAL_BAUD = int(os.getenv("SERIAL_BAUD", "115200"))
+GCS_UDP_HOST = os.getenv("GCS_UDP_HOST", "192.168.1.100")
+GCS_UDP_PORT = int(os.getenv("GCS_UDP_PORT", "14550"))
+LOCAL_TELEMETRY_UDP_PORT = int(os.getenv("LOCAL_TELEMETRY_UDP_PORT", "14551"))
 
-# Kalau Pixhawk kalian jalan di firmware ArduSub (umum untuk ROV/kapal
-# selam), depth diambil dari GLOBAL_POSITION_INT.relative_alt.
-# Kalau firmware kalian beda dan tidak mengirim pesan ini, ubah
-# DEPTH_SOURCE ke "baro" untuk pakai SCALED_PRESSURE (butuh kalibrasi
-# tekanan air sendiri -> lihat catatan di mavlink_bridge.py).
-DEPTH_SOURCE = "global_position_int"  # "global_position_int" | "baro"
+CAMERA1_DEVICE = os.getenv("CAMERA1_DEVICE", "/dev/video0")
+CAMERA2_DEVICE = os.getenv("CAMERA2_DEVICE", "/dev/video2")
+CAMERA_WIDTH = int(os.getenv("CAMERA_WIDTH", "640"))
+CAMERA_HEIGHT = int(os.getenv("CAMERA_HEIGHT", "480"))
+CAMERA_FPS = int(os.getenv("CAMERA_FPS", "30"))
 
-# ============================================================
-# WEBSOCKET (ke dashboard di laptop topside)
-# ============================================================
-WS_HOST = "0.0.0.0"   # dengar di semua interface LAN
-WS_PORT = 8765
-TELEMETRY_SEND_HZ = 5  # seberapa sering kirim update ke dashboard (per detik)
+GRIPPER_SERVO_CHANNEL = int(os.getenv("GRIPPER_SERVO_CHANNEL", "9"))
+GRIPPER_PWM_OPEN = int(os.getenv("GRIPPER_PWM_OPEN", "1900"))
+GRIPPER_PWM_CLOSED = int(os.getenv("GRIPPER_PWM_CLOSED", "1100"))
 
-# ============================================================
-# GRIPPER
-# ============================================================
-# Default: gripper digerakkan lewat servo output Pixhawk (MAV_CMD_DO_SET_SERVO),
-# karena Pixhawk sudah tersambung by USB serial -> tidak perlu kabel/relay
-# tambahan di GPIO Raspberry Pi. Kalau ternyata gripper kalian dikendalikan
-# lewat relay/motor driver terpisah di Raspberry Pi, ubah GRIPPER_MODE ke
-# "gpio" dan sesuaikan pin di bawah.
-GRIPPER_MODE = "servo"  # "servo" | "gpio"
-
-# --- mode "servo" ---
-GRIPPER_SERVO_CHANNEL = 9      # channel servo/AUX di Pixhawk untuk gripper
-GRIPPER_OPEN_PWM = 1900
-GRIPPER_CLOSED_PWM = 1100
-
-# --- mode "gpio" (kalau dipakai) ---
-GRIPPER_GPIO_PIN = 17
-GRIPPER_GPIO_ACTIVE_HIGH = True
-
-# ============================================================
-# KAMERA (MJPEG streaming lewat LAN)
-# ============================================================
-CAMERA_HTTP_HOST = "0.0.0.0"
-CAMERA_HTTP_PORT = 5000
-
-# Index /dev/videoN masing-masing kamera. Cek dengan `v4l2-ctl --list-devices`.
-CAMERA_BOTTOM_INDEX = 0
-CAMERA_WALL_INDEX = 2
-
-CAMERA_WIDTH = 1280
-CAMERA_HEIGHT = 720
-CAMERA_FPS = 20
-CAMERA_JPEG_QUALITY = 80  # 1-100, makin rendah makin ringan di LAN
-
-# ============================================================
-# LOG QR
-# ============================================================
-QR_LOG_FILE = "qr_detections.csv"
+DEPTH_SOURCE = os.getenv("DEPTH_SOURCE", "pressure") # "pressure" or "rangefinder"
+TELEMETRY_HZ = int(os.getenv("TELEMETRY_HZ", "10"))
+HTTP_PORT = int(os.getenv("HTTP_PORT", "8000"))

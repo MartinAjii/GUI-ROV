@@ -1,5 +1,6 @@
-pymavlink>=2.4.40
-websockets>=12.0
-flask>=3.0
-opencv-python-headless>=4.9
-# RPi.GPIO>=0.7.1   # buka komentar ini kalau GRIPPER_MODE = "gpio" di config.py
+pymavlink
+fastapi
+uvicorn[standard]
+opencv-python-headless
+pyzbar
+websockets

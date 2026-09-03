@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  mavlink-forwarder:
+    image: python:3.10-slim
+    container_name: mavlink-forwarder
+    network_mode: host
+    restart: unless-stopped
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    # Mounting the script and installing pymavlink dynamically keeps the image standard
+    volumes:
+      - ./backend/mavlink_forwarder.py:/app/mavlink_forwarder.py
+    command: >
+      bash -c "pip install pymavlink && python /app/mavlink_forwarder.py --master /dev/ttyACM0 --baud 115200 --out udp:192.168.1.100:14550 --out udp:127.0.0.1:14551"
+    
+  rov-backend:
+    build: .
+    container_name: rov-backend
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      - mavlink-forwarder
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/video2:/dev/video2
+    environment:
+      # These can be overridden in an .env file or by the shell
+      - LOCAL_TELEMETRY_UDP_PORT=14551
+      - CAMERA1_DEVICE=/dev/video0
+      - CAMERA2_DEVICE=/dev/video2
+      - CAMERA_WIDTH=640
+      - CAMERA_HEIGHT=480
+      - CAMERA_FPS=30
+      - DEPTH_SOURCE=pressure
+      - HTTP_PORT=8000

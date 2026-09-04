@@ -32,6 +32,8 @@ services:
       - CAMERA2_DEVICE=/dev/cam_logitech
       - CAMERA_WIDTH=1280
       - CAMERA_HEIGHT=720
-      - CAMERA_FPS=30
+      - CAMERA_FPS=15
+      - MJPEG_QUALITY=55
+      - GCS_VIDEO_ENABLED=false
       - DEPTH_SOURCE=pressure
       - HTTP_PORT=8000

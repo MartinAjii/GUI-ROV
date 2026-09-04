@@ -42,7 +42,7 @@ const CONFIG = {
   },
 
   // Interval pemindaian QR (ms) dari feed CAMERA BOTTOM
-  qrScanIntervalMs: 250,
+  qrScanIntervalMs: 600,
 
   // Kalau true, dan tidak ada backend WebSocket, panel telemetry/gripper/
   // controller akan diisi data acak supaya tampilan bisa langsung dicoba.

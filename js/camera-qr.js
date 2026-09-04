@@ -357,16 +357,42 @@ const CameraQR = (() => {
     const { w, h } = getFrameSize(videoBottom);
     if (!w || !h) return;
 
-    scanCanvas.width = w;
-    scanCanvas.height = h;
+    // Resolusi khusus untuk proses QR.
+    // Tampilan kamera tetap menggunakan resolusi aslinya.
+    const scanW = 360;
+    const scanH = Math.round((h / w) * scanW);
 
-    scanCtx.drawImage(videoBottom, 0, 0, w, h);
+    if (
+      scanCanvas.width !== scanW ||
+      scanCanvas.height !== scanH
+    ) {
+      scanCanvas.width = scanW;
+      scanCanvas.height = scanH;
+    }
 
-    const imageData = scanCtx.getImageData(0, 0, w, h);
+    scanCtx.drawImage(
+      videoBottom,
+      0,
+      0,
+      scanW,
+      scanH
+    );
 
-    const result = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: "dontInvert",
-    });
+    const imageData = scanCtx.getImageData(
+      0,
+      0,
+      scanW,
+      scanH
+    );
+
+    const result = jsQR(
+      imageData.data,
+      scanW,
+      scanH,
+      {
+        inversionAttempts: "dontInvert",
+      }
+    );
 
     const overlay = document.getElementById("qrOverlay");
     const overlayData = document.getElementById("qrOverlayData");

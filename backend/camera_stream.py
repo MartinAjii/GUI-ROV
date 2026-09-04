@@ -110,7 +110,11 @@ class GCSVideoEncoder:
             *encoder_opts,
             "-f", "mpegts", f"udp://{self.gcs_ip}:{self.gcs_port}",
         ]
-        return subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        try:
+            return subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        except OSError as e:
+            logging.error(f"Failed to start ffmpeg: {e}. Is it installed?")
+            return None
 
     def _encode_loop(self):
         while self.running:
@@ -119,12 +123,13 @@ class GCSVideoEncoder:
                     logging.warning("ffmpeg process died, restarting...")
                 self.proc = self._start_ffmpeg()
             
-            frame = self.camera_stream.get_frame()
-            if frame is not None:
-                try:
-                    self.proc.stdin.write(frame.tobytes())
-                except (BrokenPipeError, OSError):
-                    pass
+            if self.proc is not None:
+                frame = self.camera_stream.get_frame()
+                if frame is not None:
+                    try:
+                        self.proc.stdin.write(frame.tobytes())
+                    except (BrokenPipeError, OSError):
+                        pass
             
             time.sleep(1.0 / self.fps)
 

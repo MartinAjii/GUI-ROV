@@ -12,7 +12,7 @@ services:
     volumes:
       - ./backend/mavlink_forwarder.py:/app/mavlink_forwarder.py
     command: >
-      bash -c "pip install pyserial pymavlink && python -u /app/mavlink_forwarder.py --master /dev/px --baud 115200 --out udp:192.168.0.1:14550 --out udp:127.0.0.1:14551"
+      bash -c "pip install pyserial pymavlink && python -u /app/mavlink_forwarder.py --master /dev/px --baud 115200 --out udp:192.168.0.2:14550 --out udp:127.0.0.1:14551"
     
   rov-backend:
     build: .
@@ -27,6 +27,7 @@ services:
     environment:
       # These can be overridden in an .env file or by the shell
       - LOCAL_TELEMETRY_UDP_PORT=14551
+      - GCS_VIDEO_IP=192.168.0.2
       - CAMERA1_DEVICE=/dev/cam_cheap
       - CAMERA2_DEVICE=/dev/cam_logitech
       - CAMERA_WIDTH=1280

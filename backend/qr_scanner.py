@@ -66,4 +66,4 @@ async def qr_scanner_loop():
                 consecutive_reads = 0
                 last_payload = None
                 
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.15)

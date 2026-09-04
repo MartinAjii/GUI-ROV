@@ -62,31 +62,127 @@ const Telemetry = (() => {
     socket.addEventListener("error", () => socket.close());
   }
 
-  // --- Trajectory Logic ---
-  const MAX_TRAJECTORY_POINTS = 500;
+  // --- Trajectory & Gallery Logic ---
+  const MAX_TRAJECTORY_POINTS = 6000;
+  const MAX_GALLERY = 30;
+  const STORAGE_KEY = "rovMissionTrack_v2";
+  
   let trajectoryPoints = [];
+  let gallery = [];
   let trajectoryCanvas = null;
   let trajectoryCtx = null;
   let pulsePhase = 0;
   let trajectoryInitialized = false;
 
+  function loadStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (Array.isArray(saved.path)) trajectoryPoints = saved.path;
+        if (Array.isArray(saved.gallery)) gallery = saved.gallery;
+      }
+    } catch(e) {}
+  }
+
+  function saveStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        path: trajectoryPoints,
+        gallery: gallery
+      }));
+    } catch(e) {}
+  }
+
   function initTrajectory() {
     if (trajectoryInitialized) return;
+    loadStorage();
+    
     trajectoryCanvas = document.getElementById("trajectoryCanvas");
     if (!trajectoryCanvas) return;
-    
-    // Handle HDPI displays properly if we wanted, but standard canvas scale is fine for this
     trajectoryCtx = trajectoryCanvas.getContext("2d");
 
     const btnReset = document.getElementById("btnResetPath");
     if (btnReset) {
       btnReset.addEventListener("click", () => {
-        trajectoryPoints = [];
+        if (confirm("Reset track & delete all screenshots?")) {
+          trajectoryPoints = [];
+          gallery = [];
+          saveStorage();
+          renderGallery();
+        }
       });
     }
 
+    const btnCapture = document.getElementById("btnCapture");
+    if (btnCapture) {
+      btnCapture.addEventListener("click", capture);
+    }
+    
+    renderGallery();
     requestAnimationFrame(animateTrajectory);
     trajectoryInitialized = true;
+  }
+  
+  function grabFrame(elId) {
+    const el = document.getElementById(elId);
+    if (!el || el.tagName !== "VIDEO" || !el.videoWidth) return null;
+    const outCanvas = document.createElement("canvas");
+    outCanvas.width = 320; // scale down
+    outCanvas.height = Math.round((el.videoHeight / el.videoWidth) * 320);
+    outCanvas.getContext("2d").drawImage(el, 0, 0, outCanvas.width, outCanvas.height);
+    try { return outCanvas.toDataURL("image/jpeg", 0.7); } catch(e) { return null; }
+  }
+
+  function capture() {
+    const bottom = grabFrame("camBottom");
+    const wall = grabFrame("camWall");
+    if (!bottom && !wall) return;
+    
+    let currentPos = trajectoryPoints.length ? trajectoryPoints[trajectoryPoints.length-1] : {x:0, y:0};
+    
+    const entry = {
+      id: Date.now(),
+      time: new Date().toLocaleTimeString("id-ID", { hour12: false }),
+      depth: document.getElementById("telDepth")?.textContent || "0.0",
+      x: currentPos.x,
+      y: currentPos.y,
+      bottom,
+      wall
+    };
+    
+    gallery.unshift(entry);
+    if (gallery.length > MAX_GALLERY) gallery.length = MAX_GALLERY;
+    
+    saveStorage();
+    renderGallery();
+  }
+
+  function renderGallery() {
+    const list = document.getElementById("galleryList");
+    const empty = document.getElementById("galleryEmpty");
+    if (!list || !empty) return;
+    
+    empty.style.display = gallery.length ? "none" : "block";
+    list.innerHTML = "";
+    
+    gallery.forEach(entry => {
+      const card = document.createElement("div");
+      card.className = "gallery-item";
+      const thumbSrc = entry.bottom || entry.wall;
+      const links = [];
+      if (entry.bottom) links.push(`<a download="rov_bottom_${entry.id}.jpg" href="${entry.bottom}">BOTTOM</a>`);
+      if (entry.wall) links.push(`<a download="rov_wall_${entry.id}.jpg" href="${entry.wall}">WALL</a>`);
+      card.innerHTML = `
+        <img src="${thumbSrc}" loading="lazy" />
+        <div class="gallery-meta">
+          <span>${entry.time}</span>
+          <span>${entry.depth}m</span>
+        </div>
+        <div class="gallery-actions">${links.join("")}</div>
+      `;
+      list.appendChild(card);
+    });
   }
 
   function handlePositionMessage(data) {
@@ -95,6 +191,7 @@ const Telemetry = (() => {
       if (trajectoryPoints.length > MAX_TRAJECTORY_POINTS) {
         trajectoryPoints.shift();
       }
+      if (trajectoryPoints.length % 5 === 0) saveStorage(); // throttle saving
     }
   }
 
@@ -106,53 +203,68 @@ const Telemetry = (() => {
 
   function drawTrajectory() {
     if (!trajectoryCtx || !trajectoryCanvas) return;
-
-    // Read internal drawing buffer size
     const w = trajectoryCanvas.width;
     const h = trajectoryCanvas.height;
-    
     trajectoryCtx.clearRect(0, 0, w, h);
 
-    if (trajectoryPoints.length === 0) {
-       return;
+    // grid lines
+    trajectoryCtx.strokeStyle = "rgba(124,139,163,0.12)";
+    trajectoryCtx.lineWidth = 1;
+    for (let gx = 0; gx <= w; gx += 30) {
+      trajectoryCtx.beginPath(); trajectoryCtx.moveTo(gx, 0); trajectoryCtx.lineTo(gx, h); trajectoryCtx.stroke();
+    }
+    for (let gy = 0; gy <= h; gy += 30) {
+      trajectoryCtx.beginPath(); trajectoryCtx.moveTo(0, gy); trajectoryCtx.lineTo(w, gy); trajectoryCtx.stroke();
     }
 
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (let p of trajectoryPoints) {
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.y > maxY) maxY = p.y;
+    if (trajectoryPoints.length === 0) return;
+
+    let minX = 0, maxX = 0, minY = 0, maxY = 0;
+    if (trajectoryPoints.length) {
+       minX = Math.min(...trajectoryPoints.map(p=>p.x));
+       maxX = Math.max(...trajectoryPoints.map(p=>p.x));
+       minY = Math.min(...trajectoryPoints.map(p=>p.y));
+       maxY = Math.max(...trajectoryPoints.map(p=>p.y));
     }
+    
+    // minimum bounding box to avoid infinite scale
+    const spanX = Math.max(maxX - minX, 2);
+    const spanY = Math.max(maxY - minY, 2);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    minX = cx - spanX / 2;
+    maxX = cx + spanX / 2;
+    minY = cy - spanY / 2;
+    maxY = cy + spanY / 2;
 
     const padding = 15;
-    const rangeX = (maxX - minX) || 1;
-    const rangeY = (maxY - minY) || 1;
+    const scale = Math.min((w - padding * 2) / spanX, (h - padding * 2) / spanY);
     
-    const scale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeY);
-    
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
+    const toCanvas = (p) => ({
+      x: w/2 + (p.x - cx) * scale,
+      y: h/2 - (p.y - cy) * scale
+    });
 
-    const toCanvas = (p) => {
-       return {
-         x: w/2 + (p.x - centerX) * scale,
-         y: h/2 - (p.y - centerY) * scale
-       };
-    };
-
-    // Draw Path
+    // Draw path
     trajectoryCtx.beginPath();
     trajectoryCtx.strokeStyle = "rgba(34, 211, 238, 0.6)";
     trajectoryCtx.lineWidth = 1.5;
     trajectoryCtx.lineJoin = "round";
-
-    for (let i = 0; i < trajectoryPoints.length; i++) {
-      const cp = toCanvas(trajectoryPoints[i]);
+    trajectoryPoints.forEach((p, i) => {
+      const cp = toCanvas(p);
       if (i === 0) trajectoryCtx.moveTo(cp.x, cp.y);
       else trajectoryCtx.lineTo(cp.x, cp.y);
-    }
+    });
     trajectoryCtx.stroke();
+    
+    // Draw gallery markers (yellow dots)
+    gallery.forEach(entry => {
+      const gP = toCanvas({x: entry.x, y: entry.y});
+      trajectoryCtx.beginPath();
+      trajectoryCtx.arc(gP.x, gP.y, 4, 0, Math.PI * 2);
+      trajectoryCtx.fillStyle = "#f59e0b";
+      trajectoryCtx.fill();
+    });
 
     // Start point
     const startP = toCanvas(trajectoryPoints[0]);
@@ -163,13 +275,11 @@ const Telemetry = (() => {
 
     // Current point
     const currP = toCanvas(trajectoryPoints[trajectoryPoints.length - 1]);
-    
     const glowRadius = 4 + (Math.sin(pulsePhase) + 1) * 2;
     trajectoryCtx.beginPath();
     trajectoryCtx.arc(currP.x, currP.y, glowRadius, 0, Math.PI * 2);
     trajectoryCtx.fillStyle = "rgba(239, 68, 68, 0.25)";
     trajectoryCtx.fill();
-    
     trajectoryCtx.beginPath();
     trajectoryCtx.arc(currP.x, currP.y, 3.5, 0, Math.PI * 2);
     trajectoryCtx.fillStyle = "#ef4444";

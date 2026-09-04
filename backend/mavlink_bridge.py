@@ -14,15 +14,22 @@ telemetry_state = {
     "connected": False,
     "gripper": "closed"
 }
+position_state = {
+    "x": 0.0,
+    "y": 0.0
+}
 last_heartbeat_time = 0
+last_calc_time = time.time()
+has_local_pos = False
 
 async def mavlink_listener():
-    global last_heartbeat_time
+    global last_heartbeat_time, last_calc_time, has_local_pos
     connection_str = f"udpin:127.0.0.1:{config.LOCAL_TELEMETRY_UDP_PORT}"
     
     while True:
         try:
             master = mavutil.mavlink_connection(connection_str)
+            last_calc_time = time.time()
             while True:
                 msg = master.recv_match(blocking=False)
                 if not msg:
@@ -51,6 +58,36 @@ async def mavlink_listener():
                     telemetry_state["depth"] = msg.current_distance / 100.0
                 elif msg_type == "GLOBAL_POSITION_INT":
                     telemetry_state["depth"] = max(0.0, -msg.relative_alt / 1000.0)
+                
+                elif msg_type == "LOCAL_POSITION_NED":
+                    position_state["x"] = msg.x
+                    position_state["y"] = msg.y
+                    has_local_pos = True
+                elif msg_type == "RC_CHANNELS" and not has_local_pos:
+                    # Estimate dead reckoning using RC input (chan5=forward, chan6=lateral) + Yaw
+                    forward_pwm = msg.chan5_raw
+                    lateral_pwm = msg.chan6_raw
+                    
+                    # Prevent bad values
+                    if 1100 <= forward_pwm <= 1900 and 1100 <= lateral_pwm <= 1900:
+                        forward = max(-1.0, min(1.0, (forward_pwm - 1500) / 400.0))
+                        lateral = max(-1.0, min(1.0, (lateral_pwm - 1500) / 400.0))
+                        
+                        now = time.time()
+                        dt = now - last_calc_time
+                        last_calc_time = now
+                        
+                        if dt > 0 and dt < 1.0: # ignore large jumps
+                            yaw_rad = math.radians(telemetry_state["yaw"])
+                            speed = getattr(config, 'DR_MAX_SPEED_MPS', 0.6)
+                            
+                            vx = (forward * math.sin(yaw_rad) + lateral * math.cos(yaw_rad)) * speed
+                            vy = (-forward * math.cos(yaw_rad) + lateral * math.sin(yaw_rad)) * speed
+                            
+                            position_state["x"] += vx * dt
+                            position_state["y"] += vy * dt
+                    else:
+                        last_calc_time = time.time()
 
         except Exception as e:
             print(f"MAVLink bridge error: {e}. Retrying in 2s...")
@@ -66,6 +103,12 @@ async def websocket_handler(websocket):
             await websocket.send_json({
                 "type": "telemetry",
                 **telemetry_state
+            })
+            # Also send position data
+            await websocket.send_json({
+                "type": "position",
+                "x": position_state["x"],
+                "y": position_state["y"]
             })
             await asyncio.sleep(interval)
             

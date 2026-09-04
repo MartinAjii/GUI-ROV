@@ -185,6 +185,38 @@
         <div class="telemetry-value"><span id="telYaw">0.0</span><small>°</small></div>
       </div>
     </section>
+
+    <!-- ======================= MISSION HISTORY ======================= -->
+    <section class="panel-row mission-row">
+      <article class="panel track-panel">
+        <header class="panel-head">
+          <span class="panel-title">MISSION TRACK</span>
+          <div class="track-stats">
+            <span id="trackDistance" class="track-distance">0 m</span>
+            <button id="btnResetTrack" class="btn btn-small" type="button">RESET</button>
+          </div>
+        </header>
+        <div class="track-body">
+          <canvas id="trackCanvas"></canvas>
+        </div>
+        <div class="track-legend">
+          <span><i class="dot dot-green"></i>START</span>
+          <span><i class="dot dot-cyan"></i>ROV SEKARANG</span>
+          <span><i class="dot dot-amber"></i>CAPTURE</span>
+        </div>
+      </article>
+
+      <article class="panel gallery-panel">
+        <header class="panel-head">
+          <span class="panel-title">SCREENSHOT LOG</span>
+          <button id="btnCapture" class="btn btn-capture" type="button">📸 CAPTURE</button>
+        </header>
+        <div id="galleryEmpty" class="gallery-empty">
+          Belum ada screenshot. Klik CAPTURE untuk menyimpan momen dari CAMERA BOTTOM &amp; WALL.
+        </div>
+        <div id="galleryList" class="gallery-list"></div>
+      </article>
+    </section>
   </main>
 
   <!-- jsQR: decodes QR codes straight from a video/canvas frame -->
@@ -194,6 +226,7 @@
   <script src="js/camera-qr.js"></script>
   <script src="js/gripper.js"></script>
   <script src="js/controller.js"></script>
+  <script src="js/mission-track.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

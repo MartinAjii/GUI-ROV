@@ -26,6 +26,12 @@ const ControllerInput = (() => {
   let activeIndex = null;
   let lastInputTime = performance.now();
 
+  // Stick kiri (axes[0] = kiri/kanan, axes[1] = maju/mundur) dipakai
+  // MissionTrack.js untuk dead-reckoning arah gerak ROV. Nilai -1..1,
+  // sudah lewat deadzone supaya tidak drift waktu stick idle.
+  const AXIS_DEADZONE = 0.12;
+  let movement = { forward: 0, strafe: 0 };
+
   function init() {
     window.addEventListener("gamepadconnected", (e) => {
       activeIndex = e.gamepad.index;
@@ -51,6 +57,7 @@ const ControllerInput = (() => {
       latencyEl.textContent = "--";
       batteryEl.textContent = "--";
       inputSpans.forEach((s) => s.classList.remove("pressed"));
+      movement = { forward: 0, strafe: 0 };
     }
   }
 
@@ -69,6 +76,7 @@ const ControllerInput = (() => {
       const gp = pads[activeIndex];
       if (gp) {
         readButtons(gp);
+        readAxes(gp);
 
         // Latensi sungguhan antar-gamepad tidak diekspos browser;
         // di sini ditampilkan waktu sejak input terakhir sebagai proxy.
@@ -99,5 +107,13 @@ const ControllerInput = (() => {
     if (anyPressed) lastInputTime = performance.now();
   }
 
-  return { init };
+  function readAxes(gp) {
+    const rawX = gp.axes[0] || 0; // stick kiri: kiri(-1) / kanan(+1) -> strafe
+    const rawY = gp.axes[1] || 0; // stick kiri: atas(-1) / bawah(+1) -> maju/mundur
+    movement.strafe = Math.abs(rawX) > AXIS_DEADZONE ? rawX : 0;
+    movement.forward = Math.abs(rawY) > AXIS_DEADZONE ? -rawY : 0;
+    if (movement.strafe !== 0 || movement.forward !== 0) lastInputTime = performance.now();
+  }
+
+  return { init, getMovement: () => ({ ...movement }) };
 })();

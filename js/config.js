@@ -47,4 +47,20 @@ const CONFIG = {
   // Kalau true, dan tidak ada backend WebSocket, panel telemetry/gripper/
   // controller akan diisi data acak supaya tampilan bisa langsung dicoba.
   useSimulationWhenOffline: true,
+
+  // ===== MISSION TRACK (peta jejak ala Strava) =====
+  // ROV/kapal selam ini TIDAK punya GPS di bawah air, jadi track digambar
+  // dari estimasi: yaw Pixhawk (arah hadap) + input stick kiri controller
+  // (maju/mundur/strafe) — dead-reckoning, BUKAN posisi GPS asli. Anggap
+  // sebagai panduan visual arah eksplorasi, bukan koordinat presisi;
+  // makin lama misi, makin besar potensi drift-nya.
+  track: {
+    // Perkiraan kecepatan ROV saat stick full throttle (m/s). Sesuaikan
+    // dengan karakteristik thruster kalian biar jarak yang digambar
+    // mendekati kenyataan lapangan.
+    maxSpeedMps: 0.6,
+    // Simpan track & screenshot ke localStorage browser supaya tidak
+    // hilang kalau halaman ke-refresh tanpa sengaja saat lomba.
+    autosaveEnabled: true,
+  },
 };

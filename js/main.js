@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   Gripper.init();
   ControllerInput.init();
+  MissionTrack.init();
   Telemetry.connect();
 
   try {

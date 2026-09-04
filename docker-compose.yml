@@ -7,12 +7,12 @@ services:
     network_mode: host
     restart: unless-stopped
     devices:
-      - /dev/ttyACM0:/dev/ttyACM0
+      - /dev/px:/dev/px
     # Mounting the script and installing pymavlink dynamically keeps the image standard
     volumes:
       - ./backend/mavlink_forwarder.py:/app/mavlink_forwarder.py
     command: >
-      bash -c "pip install pyserial pymavlink && python -u /app/mavlink_forwarder.py --master /dev/ttyACM0 --baud 115200 --out udp:192.168.1.100:14550 --out udp:127.0.0.1:14551"
+      bash -c "pip install pyserial pymavlink && python -u /app/mavlink_forwarder.py --master /dev/px --baud 115200 --out udp:192.168.1.100:14550 --out udp:127.0.0.1:14551"
     
   rov-backend:
     build: .
@@ -22,15 +22,15 @@ services:
     depends_on:
       - mavlink-forwarder
     devices:
-      - /dev/video0:/dev/video0
-      - /dev/video2:/dev/video2
+      - /dev/cam_cheap:/dev/cam_cheap
+      - /dev/cam_logitech:/dev/cam_logitech
     environment:
       # These can be overridden in an .env file or by the shell
       - LOCAL_TELEMETRY_UDP_PORT=14551
-      - CAMERA1_DEVICE=/dev/video0
-      - CAMERA2_DEVICE=/dev/video2
-      - CAMERA_WIDTH=640
-      - CAMERA_HEIGHT=480
+      - CAMERA1_DEVICE=/dev/cam_cheap
+      - CAMERA2_DEVICE=/dev/cam_logitech
+      - CAMERA_WIDTH=1280
+      - CAMERA_HEIGHT=720
       - CAMERA_FPS=30
       - DEPTH_SOURCE=pressure
       - HTTP_PORT=8000

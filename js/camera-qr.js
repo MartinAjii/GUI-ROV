@@ -26,9 +26,6 @@ const CameraQR = (() => {
     willReadFrequently: true,
   });
 
-  const previewCanvas = document.getElementById("qrPreviewCanvas");
-  const previewCtx = previewCanvas.getContext("2d");
-
   let lastDecodedText = null;
 
   const activeStreams = new Map();
@@ -329,6 +326,7 @@ const CameraQR = (() => {
    */
 
   let lastScanTime = 0;
+  let lastDetectionTime = 0;
 
   function scanLoop(timestamp) {
     if (timestamp - lastScanTime >= CONFIG.qrScanIntervalMs) {
@@ -370,86 +368,32 @@ const CameraQR = (() => {
       inversionAttempts: "dontInvert",
     });
 
-    const badge = document.getElementById("qrBadge");
+    const overlay = document.getElementById("qrOverlay");
+    const overlayData = document.getElementById("qrOverlayData");
+    const now = Date.now();
 
     if (result && result.data) {
-      badge.textContent = "DETECTED";
-      badge.className = "badge badge-green";
+      lastDetectionTime = now;
+      overlay.style.display = "block";
 
       if (result.data !== lastDecodedText) {
         lastDecodedText = result.data;
-
-        drawPreviewFromCorners(imageData, result.location);
-
-        document.getElementById("qrDecoded").textContent = result.data;
-        document.getElementById("qrLastDetection").textContent =
-          new Date().toLocaleTimeString("id-ID", { hour12: false });
+        overlayData.textContent = result.data;
 
         // Kirim data QR ke telemetry (WebSocket -> backend Raspberry Pi).
         Telemetry.send({
           type: "qr_detected",
           data: result.data,
-          ts: Date.now(),
+          ts: now,
         });
       }
-
-      pulseScanBar();
     } else {
-      badge.textContent = "SCANNING";
-      badge.className = "badge badge-idle";
+      // Sembunyikan overlay jika tidak ada deteksi dalam 1.5 detik terakhir
+      if (now - lastDetectionTime > 1500) {
+        overlay.style.display = "none";
+        lastDecodedText = null;
+      }
     }
-  }
-
-  /*
-   * ============================================================
-   * QR PREVIEW
-   * ============================================================
-   */
-
-  function drawPreviewFromCorners(imageData, location) {
-    const xs = [
-      location.topLeftCorner.x,
-      location.topRightCorner.x,
-      location.bottomLeftCorner.x,
-      location.bottomRightCorner.x,
-    ];
-    const ys = [
-      location.topLeftCorner.y,
-      location.topRightCorner.y,
-      location.bottomLeftCorner.y,
-      location.bottomRightCorner.y,
-    ];
-
-    const minX = Math.max(0, Math.min(...xs) - 10);
-    const minY = Math.max(0, Math.min(...ys) - 10);
-    const size = Math.max(...xs) - minX + 10;
-
-    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-    previewCtx.drawImage(
-      scanCanvas,
-      minX,
-      minY,
-      size,
-      size,
-      0,
-      0,
-      previewCanvas.width,
-      previewCanvas.height
-    );
-  }
-
-  /*
-   * ============================================================
-   * QR SCAN BAR
-   * ============================================================
-   */
-
-  function pulseScanBar() {
-    const fill = document.getElementById("scanBarFill");
-    fill.style.width = "100%";
-    setTimeout(() => {
-      fill.style.width = "0%";
-    }, 400);
   }
 
   return { start };

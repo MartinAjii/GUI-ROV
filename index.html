@@ -51,6 +51,11 @@
           <video id="camBottom" class="camera-feed" autoplay muted playsinline></video>
           <canvas id="camBottomCanvas" class="hidden-canvas"></canvas>
           <div class="crosshair"></div>
+          
+          <div id="qrOverlay" class="qr-overlay">
+            <span class="badge badge-green"><i class="dot dot-green pulse"></i>QR DETECTED: <span id="qrOverlayData" class="qr-overlay-data"></span></span>
+          </div>
+
           <div class="camera-meta">
             <span id="camBottomInfo">1920×1080 · 30 fps · CAM-BOTTOM</span>
             <span id="camBottomClock">--:--:--</span>
@@ -79,24 +84,14 @@
     <!-- ======================= QR / GRIPPER / CONTROLLER ======================= -->
     <section class="panel-row">
 
-      <article class="panel qr-panel">
+      <article class="panel trajectory-panel">
         <header class="panel-head">
-          <span class="panel-title">QR DETECTION</span>
-          <span id="qrBadge" class="badge badge-idle">IDLE</span>
+          <span class="panel-title">TRAJECTORY <span class="micro-label" style="display: inline; margin: 0 0 0 6px;">(NO GPS)</span></span>
+          <button id="btnResetPath" class="badge badge-idle btn-reset-path">RESET</button>
         </header>
-        <div class="qr-body">
-          <div class="qr-preview">
-            <span class="micro-label">PREVIEW</span>
-            <canvas id="qrPreviewCanvas" width="96" height="96"></canvas>
-          </div>
-          <div class="qr-data">
-            <span class="micro-label">DECODED DATA</span>
-            <div id="qrDecoded" class="qr-decoded-box">— NO DATA —</div>
-            <span class="micro-label">LAST DETECTION</span>
-            <div id="qrLastDetection" class="qr-timestamp">--:--:--</div>
-          </div>
+        <div class="trajectory-body">
+          <canvas id="trajectoryCanvas" width="200" height="110" class="trajectory-canvas"></canvas>
         </div>
-        <div class="scan-bar"><div id="scanBarFill" class="scan-bar-fill"></div></div>
       </article>
 
       <article class="panel gripper-panel">

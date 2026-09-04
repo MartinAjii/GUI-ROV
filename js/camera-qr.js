@@ -415,7 +415,7 @@ const CameraQR = (() => {
       }
     } else {
       // Sembunyikan overlay jika tidak ada deteksi dalam 1.5 detik terakhir
-      if (now - lastDetectionTime > 1500) {
+      if (now - lastDetectionTime > 5000) {
         overlay.style.display = "none";
         lastDecodedText = null;
       }

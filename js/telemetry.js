@@ -194,10 +194,23 @@ const Telemetry = (() => {
   }
 
   function handleQrMessage(data) {
-    const overlay = document.getElementById("qrSnapshotOverlay");
-    if (overlay) {
-      overlay.src = `/video/latest_qr?t=${Date.now()}`;
-      overlay.style.display = "block";
+    console.log("[QR] Detected:", data);
+
+    // Tampilkan isi QR
+    const qrOverlay = document.getElementById("qrOverlay");
+    const qrOverlayData = document.getElementById("qrOverlayData");
+
+    if (qrOverlay && qrOverlayData && data.data) {
+      qrOverlayData.textContent = data.data;
+      qrOverlay.style.display = "block";
+    }
+
+    // Tampilkan snapshot QR
+    const snapshotOverlay = document.getElementById("qrSnapshotOverlay");
+
+    if (snapshotOverlay) {
+      snapshotOverlay.src = `/video/latest_qr?t=${Date.now()}`;
+      snapshotOverlay.style.display = "block";
     }
   }
 

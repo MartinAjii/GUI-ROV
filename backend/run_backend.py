@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from backend import config
-from backend.camera_stream import get_cam1_stream, get_cam2_stream
+from backend.camera_stream import get_cam1_stream, get_cam2_stream, start_gcs_encoder_if_enabled, stop_gcs_encoder
 from backend.qr_scanner import qr_scanner_loop
 from backend.mavlink_bridge import mavlink_listener, websocket_handler
 
@@ -24,6 +24,11 @@ app.add_middleware(
 async def startup_event():
     asyncio.create_task(mavlink_listener())
     asyncio.create_task(qr_scanner_loop())
+    start_gcs_encoder_if_enabled()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    stop_gcs_encoder()
 
 @app.get("/video/cam1")
 async def video_cam1():
@@ -32,6 +37,16 @@ async def video_cam1():
 @app.get("/video/cam2")
 async def video_cam2():
     return get_cam2_stream()
+
+import time
+from backend.qr_scanner import LatestQRState
+from fastapi.responses import JSONResponse
+
+@app.get("/video/latest_qr")
+async def get_latest_qr():
+    if LatestQRState.filepath and (time.time() - LatestQRState.timestamp) < 1800:
+        return FileResponse(LatestQRState.filepath)
+    return JSONResponse(status_code=404, content={"error": "No recent QR or older than 30 mins"})
 
 @app.websocket("/ws/telemetry")
 async def ws_telemetry(websocket: WebSocket):

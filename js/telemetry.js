@@ -44,6 +44,8 @@ const Telemetry = (() => {
         const data = JSON.parse(event.data);
         if (data.type === "position") {
           handlePositionMessage(data);
+        } else if (data.type === "qr_detected") {
+          handleQrMessage(data);
         } else {
           handleTelemetryMessage(data);
         }
@@ -120,16 +122,22 @@ const Telemetry = (() => {
     }
     
     renderGallery();
+    checkLatestQr();
     requestAnimationFrame(animateTrajectory);
     trajectoryInitialized = true;
   }
   
   function grabFrame(elId) {
     const el = document.getElementById(elId);
-    if (!el || el.tagName !== "VIDEO" || !el.videoWidth) return null;
+    if (!el) return null;
+    const isVideo = el.tagName === "VIDEO";
+    const w = isVideo ? el.videoWidth : el.naturalWidth;
+    const h = isVideo ? el.videoHeight : el.naturalHeight;
+    if (!w || !h) return null;
+    
     const outCanvas = document.createElement("canvas");
     outCanvas.width = 320; // scale down
-    outCanvas.height = Math.round((el.videoHeight / el.videoWidth) * 320);
+    outCanvas.height = Math.round((h / w) * 320);
     outCanvas.getContext("2d").drawImage(el, 0, 0, outCanvas.width, outCanvas.height);
     try { return outCanvas.toDataURL("image/jpeg", 0.7); } catch(e) { return null; }
   }
@@ -183,6 +191,27 @@ const Telemetry = (() => {
       `;
       list.appendChild(card);
     });
+  }
+
+  function handleQrMessage(data) {
+    const overlay = document.getElementById("qrSnapshotOverlay");
+    if (overlay) {
+      overlay.src = `/video/latest_qr?t=${Date.now()}`;
+      overlay.style.display = "block";
+    }
+  }
+
+  async function checkLatestQr() {
+    try {
+      const res = await fetch("/video/latest_qr");
+      if (res.ok) {
+        const overlay = document.getElementById("qrSnapshotOverlay");
+        if (overlay) {
+          overlay.src = `/video/latest_qr?t=${Date.now()}`;
+          overlay.style.display = "block";
+        }
+      }
+    } catch(e) {}
   }
 
   function handlePositionMessage(data) {
@@ -328,17 +357,25 @@ const Telemetry = (() => {
   }
 
   // Data acak untuk latihan tampilan sebelum backend ROV siap.
+  let simX = 0, simY = 0;
   function startSimulation() {
     if (simulationHandle) return;
     startMissionTimer();
     simulationHandle = setInterval(() => {
+      const yaw = Math.random() * 360;
       handleTelemetryMessage({
         depth: 1.5 + Math.random() * 0.6,
         pitch: (Math.random() - 0.5) * 4,
         roll: (Math.random() - 0.5) * 4,
-        yaw: Math.random() * 360,
+        yaw: yaw,
         battery: 14.5 + Math.random() * 0.5,
       });
+      
+      // Simulate moving in circles for trajectory testing
+      simX += Math.cos(yaw * Math.PI / 180) * 0.5;
+      simY += Math.sin(yaw * Math.PI / 180) * 0.5;
+      handlePositionMessage({ x: simX, y: simY });
+      
     }, 1500);
   }
 

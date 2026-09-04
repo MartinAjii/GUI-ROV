@@ -1,5 +1,7 @@
 import asyncio
 import cv2
+import os
+import time
 try:
     from pyzbar.pyzbar import decode
     USE_PYZBAR = True
@@ -9,6 +11,13 @@ except ImportError:
 from backend.camera_stream import cam1
 
 qr_queue = asyncio.Queue()
+
+CAPTURES_DIR = os.path.join(os.path.dirname(__file__), "captures")
+os.makedirs(CAPTURES_DIR, exist_ok=True)
+
+class LatestQRState:
+    timestamp = 0
+    filepath = None
 
 async def qr_scanner_loop():
     consecutive_reads = 0
@@ -38,11 +47,19 @@ async def qr_scanner_loop():
                     consecutive_reads = 1
                 
                 if consecutive_reads == debounce_threshold:
+                    filename = f"qr_{int(time.time())}.jpg"
+                    filepath = os.path.join(CAPTURES_DIR, filename)
+                    cv2.imwrite(filepath, frame)
+                    
+                    LatestQRState.timestamp = time.time()
+                    LatestQRState.filepath = filepath
+
                     await qr_queue.put({
-                        "type": "qr",
+                        "type": "qr_detected",
                         "side": "A", 
                         "valid": True,
-                        "code": detected_data
+                        "data": detected_data,
+                        "timestamp": LatestQRState.timestamp
                     })
                     consecutive_reads = 0
             else:

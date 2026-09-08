@@ -1,3 +1,5 @@
+> **Rekam langsung ke laptop:** lihat [CAMERA_RECORD.md](CAMERA_RECORD.md). Jalankan `laptop_recorder` di laptop lalu buka http://127.0.0.1:8080.
+
 # ROV Control Dashboard — Veteran Leviathan
 
 Dashboard kontrol untuk ROV / kapal selam robotik, dibuat dengan **HTML + CSS + JavaScript murni** (tanpa framework, tanpa build step) supaya mudah dijalankan langsung di laptop topside station maupun di-embed ke aplikasi lain (mis. Electron) kalau nanti dibutuhkan.

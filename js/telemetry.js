@@ -75,6 +75,12 @@ const Telemetry = (() => {
   let trajectoryCtx = null;
   let pulsePhase = 0;
   let trajectoryInitialized = false;
+  let lastKnownDepth = 0; // dipakai sebagai sumbu Z (kedalaman) kalau backend gak kirim z eksplisit
+
+  // Proyeksi isometrik: sudut 30 derajat khas tampilan iso
+  const ISO_COS = Math.cos(Math.PI / 6); // 0.866
+  const ISO_SIN = Math.sin(Math.PI / 6); // 0.5
+  const DEPTH_SCALE = 0.6; // seberapa besar depth "mendorong" titik ke bawah di layar
 
   function loadStorage() {
     try {
@@ -147,7 +153,7 @@ const Telemetry = (() => {
     const wall = grabFrame("camWall");
     if (!bottom && !wall) return;
     
-    let currentPos = trajectoryPoints.length ? trajectoryPoints[trajectoryPoints.length-1] : {x:0, y:0};
+    let currentPos = trajectoryPoints.length ? trajectoryPoints[trajectoryPoints.length-1] : {x:0, y:0, z:0};
     
     const entry = {
       id: Date.now(),
@@ -155,6 +161,7 @@ const Telemetry = (() => {
       depth: document.getElementById("telDepth")?.textContent || "0.0",
       x: currentPos.x,
       y: currentPos.y,
+      z: currentPos.z || 0,
       bottom,
       wall
     };
@@ -229,7 +236,8 @@ const Telemetry = (() => {
 
   function handlePositionMessage(data) {
     if (typeof data.x === "number" && typeof data.y === "number") {
-      trajectoryPoints.push({ x: data.x, y: data.y });
+      const z = typeof data.z === "number" ? data.z : lastKnownDepth;
+      trajectoryPoints.push({ x: data.x, y: data.y, z });
       if (trajectoryPoints.length > MAX_TRAJECTORY_POINTS) {
         trajectoryPoints.shift();
       }
@@ -249,47 +257,62 @@ const Telemetry = (() => {
     const h = trajectoryCanvas.height;
     trajectoryCtx.clearRect(0, 0, w, h);
 
-    // grid lines
-    trajectoryCtx.strokeStyle = "rgba(124,139,163,0.12)";
-    trajectoryCtx.lineWidth = 1;
-    for (let gx = 0; gx <= w; gx += 30) {
-      trajectoryCtx.beginPath(); trajectoryCtx.moveTo(gx, 0); trajectoryCtx.lineTo(gx, h); trajectoryCtx.stroke();
-    }
-    for (let gy = 0; gy <= h; gy += 30) {
-      trajectoryCtx.beginPath(); trajectoryCtx.moveTo(0, gy); trajectoryCtx.lineTo(w, gy); trajectoryCtx.stroke();
+    if (trajectoryPoints.length === 0) {
+      drawIsoGrid(w, h, 1);
+      return;
     }
 
-    if (trajectoryPoints.length === 0) return;
+    let minX = 0, maxX = 0, minY = 0, maxY = 0, minZ = 0, maxZ = 0;
+    minX = Math.min(...trajectoryPoints.map(p => p.x));
+    maxX = Math.max(...trajectoryPoints.map(p => p.x));
+    minY = Math.min(...trajectoryPoints.map(p => p.y));
+    maxY = Math.max(...trajectoryPoints.map(p => p.y));
+    minZ = Math.min(...trajectoryPoints.map(p => p.z || 0));
+    maxZ = Math.max(...trajectoryPoints.map(p => p.z || 0));
 
-    let minX = 0, maxX = 0, minY = 0, maxY = 0;
-    if (trajectoryPoints.length) {
-       minX = Math.min(...trajectoryPoints.map(p=>p.x));
-       maxX = Math.max(...trajectoryPoints.map(p=>p.x));
-       minY = Math.min(...trajectoryPoints.map(p=>p.y));
-       maxY = Math.max(...trajectoryPoints.map(p=>p.y));
-    }
-    
     // minimum bounding box to avoid infinite scale
     const spanX = Math.max(maxX - minX, 2);
     const spanY = Math.max(maxY - minY, 2);
+    const spanZ = Math.max(maxZ - minZ, 2);
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    minX = cx - spanX / 2;
-    maxX = cx + spanX / 2;
-    minY = cy - spanY / 2;
-    maxY = cy + spanY / 2;
+    const cz = (minZ + maxZ) / 2;
 
-    const padding = 15;
-    const scale = Math.min((w - padding * 2) / spanX, (h - padding * 2) / spanY);
-    
-    const toCanvas = (p) => ({
-      x: w/2 + (p.x - cx) * scale,
-      y: h/2 - (p.y - cy) * scale
-    });
+    // Skala dihitung dari jejak X/Y di bidang iso (diagonal (dx-dy) & (dx+dy))
+    const padding = 16;
+    const isoSpanX = (spanX + spanY) * ISO_COS;
+    const isoSpanY = (spanX + spanY) * ISO_SIN + spanZ * DEPTH_SCALE;
+    const scale = Math.min((w - padding * 2) / isoSpanX, (h - padding * 2) / isoSpanY);
 
-    // Draw path
+    const toCanvas = (p) => {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const dz = (p.z || 0) - cz;
+      const isoX = (dx - dy) * ISO_COS;
+      const isoY = (dx + dy) * ISO_SIN + dz * DEPTH_SCALE; // makin dalam (z besar) -> makin turun di layar
+      return { x: w / 2 + isoX * scale, y: h / 2 + isoY * scale };
+    };
+
+    drawIsoGrid(w, h, scale);
+
+    // Garis "tiang" dari tiap titik ke bidang dasar (z = maxZ) biar kesan kedalaman kerasa,
+    // di-sample biar gak berat kalau titiknya ribuan
+    trajectoryCtx.strokeStyle = "rgba(124,139,163,0.15)";
+    trajectoryCtx.lineWidth = 1;
+    const dropStep = Math.max(1, Math.floor(trajectoryPoints.length / 60));
+    for (let i = 0; i < trajectoryPoints.length; i += dropStep) {
+      const p = trajectoryPoints[i];
+      const top = toCanvas(p);
+      const floor = toCanvas({ x: p.x, y: p.y, z: maxZ });
+      trajectoryCtx.beginPath();
+      trajectoryCtx.moveTo(top.x, top.y);
+      trajectoryCtx.lineTo(floor.x, floor.y);
+      trajectoryCtx.stroke();
+    }
+
+    // Draw path (jalur ROV)
     trajectoryCtx.beginPath();
-    trajectoryCtx.strokeStyle = "rgba(34, 211, 238, 0.6)";
+    trajectoryCtx.strokeStyle = "rgba(34, 211, 238, 0.7)";
     trajectoryCtx.lineWidth = 1.5;
     trajectoryCtx.lineJoin = "round";
     trajectoryPoints.forEach((p, i) => {
@@ -298,10 +321,10 @@ const Telemetry = (() => {
       else trajectoryCtx.lineTo(cp.x, cp.y);
     });
     trajectoryCtx.stroke();
-    
+
     // Draw gallery markers (yellow dots)
     gallery.forEach(entry => {
-      const gP = toCanvas({x: entry.x, y: entry.y});
+      const gP = toCanvas({ x: entry.x, y: entry.y, z: entry.z || 0 });
       trajectoryCtx.beginPath();
       trajectoryCtx.arc(gP.x, gP.y, 4, 0, Math.PI * 2);
       trajectoryCtx.fillStyle = "#f59e0b";
@@ -315,7 +338,7 @@ const Telemetry = (() => {
     trajectoryCtx.fillStyle = "rgba(255, 255, 255, 0.8)";
     trajectoryCtx.fill();
 
-    // Current point
+    // Current point (dengan efek glow berdenyut)
     const currP = toCanvas(trajectoryPoints[trajectoryPoints.length - 1]);
     const glowRadius = 4 + (Math.sin(pulsePhase) + 1) * 2;
     trajectoryCtx.beginPath();
@@ -328,6 +351,37 @@ const Telemetry = (() => {
     trajectoryCtx.fill();
   }
 
+  // Grid lantai isometrik sebagai referensi bidang X/Y (bukan grid kotak biasa lagi)
+  function drawIsoGrid(w, h, scale) {
+    const step = 30;
+    const cellsX = Math.ceil(w / (step * ISO_COS)) + 2;
+    const cellsY = Math.ceil(h / (step * ISO_SIN)) + 2;
+    trajectoryCtx.strokeStyle = "rgba(124,139,163,0.12)";
+    trajectoryCtx.lineWidth = 1;
+
+    const iso = (gx, gy) => ({
+      x: w / 2 + (gx - gy) * step * ISO_COS,
+      y: h / 2 + (gx + gy) * step * ISO_SIN,
+    });
+
+    for (let gx = -cellsX; gx <= cellsX; gx++) {
+      const a = iso(gx, -cellsY);
+      const b = iso(gx, cellsY);
+      trajectoryCtx.beginPath();
+      trajectoryCtx.moveTo(a.x, a.y);
+      trajectoryCtx.lineTo(b.x, b.y);
+      trajectoryCtx.stroke();
+    }
+    for (let gy = -cellsY; gy <= cellsY; gy++) {
+      const a = iso(-cellsX, gy);
+      const b = iso(cellsX, gy);
+      trajectoryCtx.beginPath();
+      trajectoryCtx.moveTo(a.x, a.y);
+      trajectoryCtx.lineTo(b.x, b.y);
+      trajectoryCtx.stroke();
+    }
+  }
+
   function send(payload) {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(payload));
@@ -337,7 +391,10 @@ const Telemetry = (() => {
   }
 
   function handleTelemetryMessage(data) {
-    if (typeof data.depth === "number") setText("telDepth", data.depth.toFixed(1));
+    if (typeof data.depth === "number") {
+      setText("telDepth", data.depth.toFixed(1));
+      lastKnownDepth = data.depth;
+    }
     if (typeof data.pitch === "number") setText("telPitch", signed(data.pitch));
     if (typeof data.roll === "number") setText("telRoll", signed(data.roll));
     if (typeof data.yaw === "number") setText("telYaw", data.yaw.toFixed(1));

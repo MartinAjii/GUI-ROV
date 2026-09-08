@@ -13,6 +13,7 @@ class CameraStream:
         self.height = height
         self.fps = fps
         self.latest_frame = None
+        self.latest_frame_at = 0
         self.lock = threading.Lock()
         self.running = True
         self.thread = threading.Thread(target=self._capture_loop, daemon=True)
@@ -35,12 +36,15 @@ class CameraStream:
             if ret:
                 with self.lock:
                     self.latest_frame = frame
+                    self.latest_frame_at = time.monotonic()
             else:
                 time.sleep(0.1)
                 
-    def get_frame(self):
+        cap.release()
+
+    def get_frame(self, max_age=2):
         with self.lock:
-            if self.latest_frame is not None:
+            if self.latest_frame is not None and time.monotonic() - self.latest_frame_at <= max_age:
                 return self.latest_frame.copy()
             return None
 

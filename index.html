@@ -62,6 +62,12 @@
             <span id="camBottomClock">--:--:--</span>
           </div>
         </div>
+        <div class="record-controls" data-record-camera="cam1">
+          <button type="button" class="record-toggle" disabled>Mulai rekam</button>
+          <span class="record-status" role="status">Menghubungkan…</span>
+          <small class="record-destination">Penyimpanan: laptop</small>
+          <details class="record-history"><summary>Rekaman laptop · unduh salinan</summary><ul></ul></details>
+        </div>
       </article>
 
       <article class="panel camera-panel">
@@ -79,6 +85,12 @@
             <span id="camWallClock">--:--:--</span>
           </div>
         </div>
+        <div class="record-controls" data-record-camera="cam2">
+          <button type="button" class="record-toggle" disabled>Mulai rekam</button>
+          <span class="record-status" role="status">Menghubungkan…</span>
+          <small class="record-destination">Penyimpanan: laptop</small>
+          <details class="record-history"><summary>Rekaman laptop · unduh salinan</summary><ul></ul></details>
+        </div>
       </article>
     </section>
 
@@ -91,7 +103,7 @@
           <button id="btnResetPath" class="badge badge-idle btn-reset-path">RESET</button>
         </header>
         <div class="trajectory-body">
-          <canvas id="trajectoryCanvas" width="200" height="110" class="trajectory-canvas"></canvas>
+          <canvas id="trajectoryCanvas" width="260" height="150" class="trajectory-canvas"></canvas>
         </div>
       </article>
 
@@ -156,6 +168,23 @@
               <span data-btn="LB">LB</span><span data-btn="RB">RB</span>
               <span data-btn="A">A</span><span data-btn="B">B</span>
               <span data-btn="X">X</span><span data-btn="Y">Y</span>
+              <span data-btn="PLUS">+</span>
+            </div>
+          </div>
+          <div class="stick-row">
+            <div class="stick-vis">
+              <span class="micro-label">LEFT STICK</span>
+              <div id="stickL" class="stick-circle">
+                <div class="stick-crosshair"></div>
+                <div id="stickDotL" class="stick-dot"></div>
+              </div>
+            </div>
+            <div class="stick-vis">
+              <span class="micro-label">RIGHT STICK</span>
+              <div id="stickR" class="stick-circle">
+                <div class="stick-crosshair"></div>
+                <div id="stickDotR" class="stick-dot"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -202,6 +231,7 @@
   <script src="js/config.js"></script>
   <script src="js/telemetry.js"></script>
   <script src="js/camera-qr.js"></script>
+  <script src="js/camera-record.js"></script>
   <script src="js/gripper.js"></script>
   <script src="js/controller.js"></script>
   <script src="js/main.js"></script>

@@ -216,7 +216,7 @@ body {
 .trajectory-body { padding: 14px; }
 .trajectory-canvas {
   width: 100%;
-  height: 110px;
+  height: 150px;
   background: var(--bg-panel-2);
   border-radius: 4px;
   border: 1px solid var(--border-soft);
@@ -339,6 +339,59 @@ body {
   border-color: var(--green);
 }
 
+/* ---------------- STICK VISUALIZER ---------------- */
+.stick-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+.stick-vis {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.stick-circle {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+.stick-crosshair {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+}
+.stick-crosshair::before,
+.stick-crosshair::after {
+  content: "";
+  position: absolute;
+  background: rgba(124, 139, 163, 0.18);
+}
+.stick-crosshair::before { top: 50%; left: 4px; right: 4px; height: 1px; }
+.stick-crosshair::after { left: 50%; top: 4px; bottom: 4px; width: 1px; }
+.stick-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  border: 1px solid var(--border);
+  transform: translate(-50%, -50%);
+  transition: background 0.1s ease, border-color 0.1s ease;
+  will-change: transform;
+}
+.stick-dot.active {
+  background: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.5);
+}
+
 /* ---------------- TELEMETRY BAR ---------------- */
 .telemetry-bar {
   display: grid;
@@ -436,3 +489,18 @@ i[data-icon] { display: inline-block; width: 11px; }
   padding: 2px 5px;
 }
 .gallery-actions a:hover { border-color: var(--cyan); }
+/* Camera recording controls */
+.record-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.12); font-size: 12px; }
+.record-toggle { color: #fff; background: #253752; border: 1px solid #66809f; border-radius: 5px; padding: 7px 12px; cursor: pointer; font: inherit; }
+.record-toggle:disabled { opacity: .5; cursor: wait; }
+.record-toggle:focus-visible, .record-history summary:focus-visible { outline: 2px solid #64caff; outline-offset: 3px; }
+.is-recording .record-toggle { background: #962c37; border-color: #ff7f89; }
+.is-recording .record-status { color: #ff929b; }
+.record-status { flex: 1; min-width: 120px; }
+.record-history { width: 100%; }
+.record-history summary { cursor: pointer; color: #9dd9ff; }
+.record-history ul { max-height: 150px; overflow: auto; margin: 8px 0 0; padding-left: 18px; }
+.record-history li { margin: 6px 0; overflow-wrap: anywhere; }
+.record-history a { color: #9dd9ff; }
+
+.record-destination { width: 100%; color: #aabbd0; overflow-wrap: anywhere; }

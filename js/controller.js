@@ -14,7 +14,12 @@ const ControllerInput = (() => {
   const BUTTON_MAP = {
     0: "A", 1: "B", 2: "X", 3: "Y",
     4: "LB", 5: "RB", 6: "LT", 7: "RT",
+    9: "PLUS", // tombol Start/Options, biasanya bertanda "+" di controller non-Xbox
   };
+
+  // Index axis pada "standard gamepad mapping":
+  // 0 = LS horizontal, 1 = LS vertical, 2 = RS horizontal, 3 = RS vertical
+  const STICK_DEADZONE = 0.15;
 
   const badge = document.getElementById("controllerBadge");
   const nameEl = document.getElementById("controllerName");
@@ -51,6 +56,8 @@ const ControllerInput = (() => {
       latencyEl.textContent = "--";
       batteryEl.textContent = "--";
       inputSpans.forEach((s) => s.classList.remove("pressed"));
+      positionDot(document.getElementById("stickDotL"), 0, 0, false);
+      positionDot(document.getElementById("stickDotR"), 0, 0, false);
     }
   }
 
@@ -69,6 +76,7 @@ const ControllerInput = (() => {
       const gp = pads[activeIndex];
       if (gp) {
         readButtons(gp);
+        readSticks(gp);
 
         // Latensi sungguhan antar-gamepad tidak diekspos browser;
         // di sini ditampilkan waktu sejak input terakhir sebagai proxy.
@@ -97,6 +105,42 @@ const ControllerInput = (() => {
       if (isPressed) anyPressed = true;
     });
     if (anyPressed) lastInputTime = performance.now();
+  }
+
+  function readSticks(gp) {
+    const dotL = document.getElementById("stickDotL");
+    const dotR = document.getElementById("stickDotR");
+
+    const lx = clampAxis(gp.axes[0]);
+    const ly = clampAxis(gp.axes[1]);
+    const rx = clampAxis(gp.axes[2]);
+    const ry = clampAxis(gp.axes[3]);
+
+    const lsMag = Math.hypot(lx, ly);
+    const rsMag = Math.hypot(rx, ry);
+    const lsActive = lsMag > STICK_DEADZONE;
+    const rsActive = rsMag > STICK_DEADZONE;
+
+    positionDot(dotL, lx, ly, lsActive);
+    positionDot(dotR, rx, ry, rsActive);
+
+    if (lsActive || rsActive) lastInputTime = performance.now();
+  }
+
+  // Jarak dot dari pusat lingkaran (radius lingkaran = 32px, dot radius = 6px)
+  const STICK_TRAVEL_PX = 26;
+
+  function positionDot(dot, x, y, active) {
+    if (!dot) return;
+    const px = x * STICK_TRAVEL_PX;
+    const py = y * STICK_TRAVEL_PX;
+    dot.style.transform = `translate(calc(-50% + ${px.toFixed(1)}px), calc(-50% + ${py.toFixed(1)}px))`;
+    dot.classList.toggle("active", active);
+  }
+
+  function clampAxis(v) {
+    if (typeof v !== "number" || Number.isNaN(v)) return 0;
+    return Math.max(-1, Math.min(1, v));
   }
 
   return { init };

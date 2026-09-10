@@ -504,3 +504,44 @@ i[data-icon] { display: inline-block; width: 11px; }
 .record-history a { color: #9dd9ff; }
 
 .record-destination { width: 100%; color: #aabbd0; overflow-wrap: anywhere; }
+
+/* Software stop stays visible while the operator watches camera feeds. */
+.stop-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 12px;
+  padding: 14px 18px;
+  border: 1px solid #a33b46;
+  border-radius: var(--radius);
+  background: #251722;
+  box-shadow: 0 6px 20px #0005;
+}
+.stop-action { flex: 0 0 230px; display: grid; gap: 7px; }
+.stop-button {
+  min-height: 54px;
+  padding: 12px 18px;
+  border: 2px solid #ff8d94;
+  border-radius: 8px;
+  color: white;
+  background: #b91c2b;
+  font: 800 17px var(--font-ui);
+  letter-spacing: .5px;
+  cursor: pointer;
+}
+.stop-button:hover:not(:disabled) { background: #dc2435; }
+.stop-button:active:not(:disabled) { background: #941725; }
+.stop-button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+.stop-button:disabled { cursor: not-allowed; background: #54333b; border-color: #96616b; color: #ead7db; }
+.stop-arm-state { text-align: center; font: 700 11px var(--font-mono); color: #fbbf24; }
+.stop-arm-state[data-state="armed"] { color: #ff929a; }
+.stop-arm-state[data-state="disarmed"] { color: #67e8f9; }
+.stop-copy p { font-size: 14px; line-height: 1.5; margin-bottom: 4px; }
+.stop-copy small { display: block; color: #c4afbb; line-height: 1.5; font-size: 12px; }
+@media (max-width: 600px) {
+  .stop-bar { top: 4px; flex-direction: column; align-items: stretch; gap: 9px; padding: 12px; }
+  .stop-action { flex-basis: auto; }
+}

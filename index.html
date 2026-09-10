@@ -22,8 +22,8 @@
       <div class="status-item">
         <span class="status-key">ROV STATUS</span>
         <span class="status-value">
-          <i id="rovStatusDot" class="dot dot-green"></i>
-          <span id="rovStatusText">Connected</span>
+          <i id="rovStatusDot" class="dot dot-red"></i>
+          <span id="rovStatusText">Menunggu Pixhawk</span>
         </span>
       </div>
       <div class="status-item">
@@ -36,6 +36,18 @@
       </div>
     </div>
   </header>
+
+  <section class="stop-bar" aria-label="Penghentian ROV">
+    <div class="stop-action">
+      <button id="btnStopDisarm" class="stop-button" type="button" disabled
+              aria-describedby="stopStatus stopHelp">STOP / DISARM</button>
+      <span id="stopArmState" class="stop-arm-state" data-state="unknown">STATUS TIDAK DIKETAHUI</span>
+    </div>
+    <div class="stop-copy">
+      <p id="stopStatus" role="status" aria-live="polite">Menunggu konfirmasi Pixhawk…</p>
+      <small id="stopHelp">DISARM melalui koneksi ROV. Tidak memutus listrik dan tidak menggantikan emergency stop fisik.</small>
+    </div>
+  </section>
 
   <!-- ======================= CAMERAS ======================= -->
   <main class="grid-main">
@@ -229,6 +241,7 @@
   <!-- jsQR: decodes QR codes straight from a video/canvas frame -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/emergency-stop.js"></script>
   <script src="js/telemetry.js"></script>
   <script src="js/camera-qr.js"></script>
   <script src="js/camera-record.js"></script>

@@ -25,3 +25,7 @@ GRIPPER_PWM_CLOSED = int(os.getenv("GRIPPER_PWM_CLOSED", "1100"))
 DEPTH_SOURCE = os.getenv("DEPTH_SOURCE", "pressure") # "pressure" or "rangefinder"
 TELEMETRY_HZ = int(os.getenv("TELEMETRY_HZ", "10"))
 HTTP_PORT = int(os.getenv("HTTP_PORT", "8000"))
+
+# Match the permitted GCS system ID; component 191 separates GUI commands.
+STOP_SOURCE_SYSTEM = int(os.getenv("STOP_SOURCE_SYSTEM", "255"))
+STOP_SOURCE_COMPONENT = int(os.getenv("STOP_SOURCE_COMPONENT", "191"))

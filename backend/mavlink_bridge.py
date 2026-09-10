@@ -3,6 +3,9 @@ import math
 import time
 from pymavlink import mavutil
 from backend import config
+from backend.stop_control import StopControl
+
+stop_control = StopControl(mavutil.mavlink)
 from backend.qr_scanner import qr_queue
 
 telemetry_state = {
@@ -28,14 +31,21 @@ async def mavlink_listener():
     
     while True:
         try:
-            master = mavutil.mavlink_connection(connection_str)
+            master = mavutil.mavlink_connection(
+                connection_str, source_system=config.STOP_SOURCE_SYSTEM,
+                source_component=config.STOP_SOURCE_COMPONENT)
+            stop_control.attach(master)
             last_calc_time = time.time()
             while True:
+                stop_control.tick()
                 msg = master.recv_match(blocking=False)
                 if not msg:
                     await asyncio.sleep(0.01)
                     continue
                 
+                stop_control.observe(msg)
+                if (msg.get_srcSystem(), msg.get_srcComponent()) != stop_control.target:
+                    continue
                 msg_type = msg.get_type()
                 if msg_type == "HEARTBEAT":
                     last_heartbeat_time = time.time()
@@ -90,22 +100,34 @@ async def mavlink_listener():
                         last_calc_time = time.time()
 
         except Exception as e:
+            stop_control.disconnect()
             print(f"MAVLink bridge error: {e}. Retrying in 2s...")
             await asyncio.sleep(2)
+        finally:
+            stop_control.disconnect()
+            if "master" in locals():
+                master.close()
 
 async def websocket_handler(websocket):
     await websocket.accept()
     interval = 1.0 / config.TELEMETRY_HZ
+    send_lock = asyncio.Lock()
+
+    async def send_json(payload):
+        async with send_lock:
+            await websocket.send_json(payload)
     
     async def send_telemetry():
         while True:
-            telemetry_state["connected"] = (time.time() - last_heartbeat_time) <= 3.0
-            await websocket.send_json({
+            safety = stop_control.telemetry()
+            telemetry_state["connected"] = safety["connected"]
+            await send_json({
                 "type": "telemetry",
-                **telemetry_state
+                **telemetry_state,
+                **safety
             })
             # Also send position data
-            await websocket.send_json({
+            await send_json({
                 "type": "position",
                 "x": position_state["x"],
                 "y": position_state["y"]
@@ -115,17 +137,28 @@ async def websocket_handler(websocket):
     async def send_qr():
         while True:
             qr_msg = await qr_queue.get()
-            await websocket.send_json(qr_msg)
+            await send_json(qr_msg)
             
     async def receive_commands():
         while True:
             try:
                 data = await websocket.receive_json()
-                pass # Forward commands here if needed later
+                if not isinstance(data, dict):
+                    await send_json({"type": "command_result", "error": "Perintah tidak valid."})
+                    continue
+                if data.get("type") == "command" and data.get("command") == "disarm":
+                    result = stop_control.request(data.get("id"))
+                    await send_json({"type": "command_result", "id": data.get("id"), **result})
+                else:
+                    await send_json({"type": "command_result", "id": data.get("id"),
+                                     "error": "Perintah tidak didukung."})
             except Exception:
                 break
                 
+    tasks = [asyncio.create_task(fn()) for fn in (send_telemetry, send_qr, receive_commands)]
     try:
-        await asyncio.gather(send_telemetry(), send_qr(), receive_commands())
-    except Exception:
-        pass
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)

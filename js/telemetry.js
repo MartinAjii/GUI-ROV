@@ -34,7 +34,8 @@ const Telemetry = (() => {
     socket = new WebSocket(CONFIG.websocketUrl);
 
     socket.addEventListener("open", () => {
-      setRovStatus(true, "Connected");
+      EmergencyStop.setConnection(true);
+      setRovStatus(false, "Menunggu Pixhawk");
       startMissionTimer();
       stopSimulation();
     });
@@ -42,7 +43,12 @@ const Telemetry = (() => {
     socket.addEventListener("message", (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === "position") {
+        if (data.type === "command_result") {
+          EmergencyStop.onResult(data);
+        } else if (data.type === "telemetry") {
+          EmergencyStop.onTelemetry(data);
+          handleTelemetryMessage(data);
+        } else if (data.type === "position") {
           handlePositionMessage(data);
         } else if (data.type === "qr_detected") {
           handleQrMessage(data);
@@ -55,6 +61,7 @@ const Telemetry = (() => {
     });
 
     socket.addEventListener("close", () => {
+      EmergencyStop.setConnection(false);
       setRovStatus(false, "Disconnected");
       stopMissionTimer();
       setTimeout(connect, CONFIG.wsReconnectDelayMs);
@@ -383,10 +390,12 @@ const Telemetry = (() => {
   }
 
   function send(payload) {
-    if (socket && socket.readyState === WebSocket.OPEN) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    try {
       socket.send(JSON.stringify(payload));
-    } else {
-      console.log("[SIM] would send to ROV:", payload);
+      return true;
+    } catch (err) {
+      return false;
     }
   }
 

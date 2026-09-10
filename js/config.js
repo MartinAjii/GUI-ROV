@@ -13,7 +13,7 @@ const CONFIG = {
   // Alamat WebSocket backend ROV (mavlink_bridge.py) yang jalan di
   // Raspberry Pi. Ganti <IP-RASPBERRY-PI> dengan IP Pi di jaringan
   // hAP lite kalian, contoh: "ws://192.168.88.10:8765"
-  websocketUrl: `ws://${window.location.host}/ws/telemetry`,
+  websocketUrl: `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/telemetry`,
 
   // Reconnect otomatis kalau koneksi WebSocket putus
   wsReconnectDelayMs: 3000,
@@ -46,5 +46,5 @@ const CONFIG = {
 
   // Kalau true, dan tidak ada backend WebSocket, panel telemetry/gripper/
   // controller akan diisi data acak supaya tampilan bisa langsung dicoba.
-  useSimulationWhenOffline: true,
+  useSimulationWhenOffline: false,
 };

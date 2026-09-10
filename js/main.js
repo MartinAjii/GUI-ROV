@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const teamName = params.get("team") || CONFIG.teamName;
   document.getElementById("teamName").textContent = teamName;
 
+  EmergencyStop.init();
   Gripper.init();
   ControllerInput.init();
   Telemetry.connect();

@@ -13,7 +13,7 @@ services:
     volumes:
       - ./backend/mavlink_forwarder.py:/app/mavlink_forwarder.py
     command: >
-      bash -c "pip install pyserial pymavlink && python -u /app/mavlink_forwarder.py --master /dev/px --baud 115200 --out udp:192.168.0.2:14550 --out udp:127.0.0.1:14551"
+      bash -c "pip install pyserial pymavlink && python -u /app/mavlink_forwarder.py --master /dev/px --baud 115200 --out udp:192.168.0.2:14560 --out udp:127.0.0.1:14551"
     
   rov-backend:
     build: .

@@ -545,3 +545,73 @@ i[data-icon] { display: inline-block; width: 11px; }
   .stop-bar { top: 4px; flex-direction: column; align-items: stretch; gap: 9px; padding: 12px; }
   .stop-action { flex-basis: auto; }
 }
+
+
+/* Logo tambahan setelah nama tim */
+.additional-logo1 {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+.additional-logo1 img {
+  display: block;
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+}
+
+.additional-logo2 img {
+  display: block;
+  width: 124px;
+  height: 124px;
+  object-fit: contain;
+}
+
+.team-info > .team-logo {
+  flex-shrink: 0;
+}
+
+/* Header menyesuaikan ruang layar */
+.topbar {
+  padding: 0px 20px;
+}
+
+@media (max-width: 560px) {
+  .team-info {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .team-text {
+    min-width: 0;
+  }
+
+  .team-text h1 {
+    font-size: 16px;
+  }
+
+  .additional-logo1 {
+    gap: 8px;
+    margin-left: 0;
+  }
+
+  .additional-logo2 {
+    gap: 8px;
+    margin-left: 0;
+  }
+
+  .additional-logo1 img {
+    width: 78px;
+    height: 42px;
+    object-fit: contain;
+  }
+
+  .additional-logo2 img {
+    width: 124px;
+    height: 42px;
+    object-fit: contain;
+  }
+}

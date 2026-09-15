@@ -401,6 +401,28 @@ const CameraQR = (() => {
     if (result && result.data) {
       lastDetectionTime = now;
       overlay.style.display = "block";
+      
+      // 1. Logika untuk status Valid/Invalid (Ubah kata kuncinya sesuai kebutuhan)
+      // Contoh: Valid jika mengandung teks "SECTOR", "A", "B", dll.
+      
+      const isValid = result.data.includes("SECTOR") || result.data.includes("VALID");
+      const statusBagde = document.getElementById("qrStatusBagde");
+
+      if (statusBagde) {
+        if (isValid) {
+          statusBagde.className = "badge badge-green";
+          statusBagde.innerHTML = '<i class="dot dot-green"></i> VALID';
+        } else {
+          statusBagde.className = "badge badge-red";
+          statusBagde.innerHTML = '<i class="dot dot-red"></i> INVALID';
+        }
+      }
+
+      // 2. Update panel data (di sebelah kamera)
+      const dataContent = document.getElementById("qrDataContent");
+      if (dataContent) {
+        dataContent.innerText = result.data;
+      }
 
       if (result.data !== lastDecodedText) {
         lastDecodedText = result.data;

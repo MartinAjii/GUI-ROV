@@ -125,12 +125,63 @@
           <details class="record-history"><summary>Rekaman laptop · unduh salinan</summary><ul></ul></details>
         </div>
       </article>
+      <article class="panel qr-panel">
+        <header class="panel-head">
+          <span class="panel-title">QR CODE & STATUS</span>
+        </header>
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div>
+            <span class="micro-label">STATUS</span>
+            <span id="qrStatusBadge" class="badge badge-idle" style="display: inline-flex; font-size: 14px; padding: 6px 12px;">MENUNGGU...</span>
+          </div>
+          <div>
+            <span class="micro-label">ISI DATA</span>
+            <div id="qrDataContent" style="font-family: var(--font-mono); font-size: 14px; background: var(--bg-panel-2); padding: 12px; border-radius: 6px; border: 1px solid var(--border-soft); min-height: 60px; word-wrap: break-word;">-</div>
+          </div>
+        </div>
+      </article>
+    </section>
+    
+    <!-- ======================= ALTITUDE / TRAJECTORY / DESIGN ======================= -->
+    <section class="panel-row" style="margin-bottom: 12px;">
+      <!-- ALTITUDE PANEL -->
+      <article class="panel altitude-panel">
+        <header class="panel-head">
+          <span class="panel-title">ALTITUDE</span>
+        </header>
+        <div style="padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 160px;">
+          <span class="micro-label">(Height from pool floor)</span>
+          <div class="telemetry-value accent-cyan" style="font-size: 38px;"><span id="telAltitude">0.0</span><small>m</small></div>
+        </div>
+      </article>
+
+      <!-- TRAJECTORY MAP PANEL (Ini sama dengan yang di bawah, Anda bisa menghapus panel lama yang ada di baris gripper agar tidak ganda) -->
+      <article class="panel trajectory-panel">
+        <header class="panel-head">
+          <span class="panel-title">TRAJECTORY MAP</span>
+          <button id="btnResetPath" class="badge badge-idle btn-reset-path">RESET</button>
+        </header>
+        <div class="trajectory-body">
+          <canvas id="trajectoryCanvas" width="260" height="150" class="trajectory-canvas" style="height: 130px;"></canvas>
+        </div>
+      </article>
+
+      <!-- ROV DESIGN PANEL -->
+      <article class="panel design-panel">
+        <header class="panel-head">
+          <span class="panel-title">ROV DESIGN</span>
+        </header>
+        <div style="padding: 10px; display: flex; justify-content: center; align-items: center; height: 160px;">
+          <!-- Pastikan src di bawah ini sesuai dengan nama file yang Anda ubah di Langkah 1 -->
+          <img src="assets/rov-design.png" alt="3D ROV Design" style="max-width: 100%; max-height: 100%; border-radius: 4px; object-fit: contain;" />
+        </div>
+      </article>
     </section>
 
     <!-- ======================= QR / GRIPPER / CONTROLLER ======================= -->
     <section class="panel-row">
 
-      <article class="panel trajectory-panel">
+      <!-- <article class="panel trajectory-panel">
         <header class="panel-head">
           <span class="panel-title">TRAJECTORY <span class="micro-label" style="display: inline; margin: 0 0 0 6px;">(NO GPS)</span></span>
           <button id="btnResetPath" class="badge badge-idle btn-reset-path">RESET</button>
@@ -138,7 +189,7 @@
         <div class="trajectory-body">
           <canvas id="trajectoryCanvas" width="260" height="150" class="trajectory-canvas"></canvas>
         </div>
-      </article>
+      </article> -->
 
       <article class="panel gripper-panel">
         <header class="panel-head">
